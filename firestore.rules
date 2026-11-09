@@ -1,0 +1,183 @@
+rules_version = '2';
+// ILMORA — মাল্টি-মাদরাসা Firestore Security Rules (Gmail + মাসিক সাবস্ক্রিপশন সংস্করণ)
+// Cloud Functions ছাড়া (Spark Plan) চলে: সব যাচাই এই রুলস + members ডকুমেন্টের ওপর নির্ভর করে।
+//
+// মূল নীতি:
+//   ১) Gmail যাচাই (email_verified) না হলে কোনো ডেটা পড়া/লেখা যায় না।
+//   ২) মাদরাসা 'active' এবং সাবস্ক্রিপশনের মেয়াদ বাকি না থাকলে রেকর্ড পড়া/লেখা দুটোই বন্ধ (সার্ভারে প্রয়োগ হয়)।
+//   ৩) এক মাদরাসা অন্যের ডেটা দেখতে/লিখতে পারে না।
+//   ৪) প্যাকেজ/মেয়াদ/স্ট্যাটাস শুধু Super Admin বদলাতে পারে; পেমেন্ট অনুরোধ একই TrxID দুইবার জমা হয় না।
+//
+// কাঠামো:
+//   superAdmins/{uid}                 -> শুধু Firebase Console থেকে বানানো যায় (প্ল্যাটফর্ম মালিক)
+//   utn/{uid}                         -> ইউজার -> মাদরাসা পয়েন্টার {t}
+//   tenants/{t}                       -> মাদরাসা (status/plan/expiresAt শুধু Super Admin)
+//   tenants/{t}/members/{uid}         -> সদস্য ও রোল (admin/accountant/teacher/student)
+//   tenants/{t}/records/{c~id}        -> মাদরাসার সব রেকর্ড
+//   tenants/{t}/pub/{doc}             -> শিক্ষার্থী-পোর্টালের জন্য আলাদা নিরাপদ ডকুমেন্ট
+//   payments/{tx_<b|n|r>_<TRXID>}     -> সাবস্ক্রিপশন পেমেন্ট অনুরোধ (ডকুমেন্ট আইডিই TrxID; দ্বিতীয়বার জমা অসম্ভব)
+//   plans/{id}, platform/{doc}        -> প্যাকেজ ও পেমেন্ট নম্বর (যাচাইকৃত ইউজার পড়বে, শুধু Super Admin লিখবে)
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // ---------- সাধারণ ফাংশন ----------
+    // signedIn = লগইন + Gmail যাচাই সম্পন্ন (ID token-এর email_verified দাবি)
+    function signedIn() { return request.auth != null && request.auth.token.email_verified == true; }
+    function me() { return request.auth.uid; }
+    function isSA() {
+      return signedIn() && exists(/databases/$(database)/documents/superAdmins/$(me()));
+    }
+    function tdoc(t) { return get(/databases/$(database)/documents/tenants/$(t)).data; }
+    function mpath(t) { return /databases/$(database)/documents/tenants/$(t)/members/$(me()); }
+    function isMember(t) { return signedIn() && exists(mpath(t)) && get(mpath(t)).data.st == 'active'; }
+    function roleOf(t) { return get(mpath(t)).data.role; }
+    function isTAdmin(t) { return isMember(t) && roleOf(t) == 'admin'; }
+    function isMoney(t) { return isMember(t) && roleOf(t) in ['admin', 'accountant']; }
+    function isStaff(t) { return isMember(t) && roleOf(t) in ['admin', 'accountant', 'teacher']; }
+    // অনুমোদিত (active) + সাবস্ক্রিপশনের মেয়াদ বাকি (expiresAt == 0 মানে Super Admin-এর দেওয়া মেয়াদহীন)
+    function writable(t) {
+      return tdoc(t).status == 'active' && (tdoc(t).expiresAt == 0 || request.time.toMillis() < tdoc(t).expiresAt);
+    }
+    function validMember() {
+      let d = request.resource.data;
+      return d.role in ['admin', 'accountant', 'teacher', 'student']
+          && d.st in ['active', 'disabled']
+          && d.name is string && d.name.size() <= 100
+          && (!('em' in d) || (d.em is string && d.em.size() <= 120));
+    }
+    function validPay(id) {
+      let d = request.resource.data;
+      return d.keys().hasOnly(['t', 'plan', 'amt', 'method', 'mk', 'trx', 'from', 'st', 'at'])
+          && d.st == 'pending'
+          && d.t is string && d.plan is string && d.plan.size() <= 30
+          && d.amt is int && d.amt > 0 && d.amt <= 100000
+          && d.method in ['বিকাশ', 'নগদ', 'রকেট']
+          && d.mk in ['b', 'n', 'r']
+          && d.trx is string && d.trx.matches('^[A-Z0-9]{6,30}$')
+          && d.from is string && d.from.size() <= 20
+          && d.at is int
+          && id == 'tx_' + d.mk + '_' + d.trx;
+    }
+
+    // ---------- প্ল্যাটফর্ম মালিক ----------
+    match /superAdmins/{u} {
+      allow get: if signedIn() && me() == u;   // নিজে Super Admin কি না জানতে
+      allow list, write: if false;             // শুধু Firebase Console থেকে
+    }
+
+    // ---------- ইউজার -> মাদরাসা ----------
+    match /utn/{u} {
+      allow get: if signedIn() && (me() == u || isSA());
+      allow create: if signedIn()
+        && request.resource.data.keys().hasOnly(['t'])
+        && request.resource.data.t is string
+        && (
+          isSA()
+          || isTAdmin(request.resource.data.t)
+          || (me() == u
+              && exists(/databases/$(database)/documents/tenants/$(request.resource.data.t)/members/$(u))
+              && tdoc(request.resource.data.t).ownerUid == me())
+        );
+      allow update: if false;
+      allow delete: if signedIn() && (isSA() || isTAdmin(resource.data.t));
+    }
+
+    // ---------- মাদরাসা ----------
+    match /tenants/{t} {
+      allow get: if isMember(t) || isSA();
+      allow list: if isSA();
+      // নিবন্ধন (Gmail যাচাইয়ের পর): শুধু pending + কোনো প্যাকেজ নেই + মেয়াদ ০, নিজেকে মালিক দিয়ে
+      allow create: if isSA() || (signedIn()
+        && request.resource.data.keys().hasOnly(['name', 'status', 'plan', 'expiresAt', 'ownerUid', 'createdAt'])
+        && request.resource.data.ownerUid == me()
+        && request.resource.data.status == 'pending'
+        && request.resource.data.plan == 'none'
+        && request.resource.data.expiresAt == 0
+        && request.resource.data.name is string
+        && request.resource.data.name.size() <= 120);
+      // মাদরাসার অ্যাডমিন শুধু নাম বদলাতে পারবে; status/plan/মেয়াদ শুধু Super Admin
+      allow update: if isSA() || (isTAdmin(t)
+        && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['name']));
+      // নিবন্ধন ব্যর্থ হলে মালিক নিজের pending মাদরাসা মুছতে পারবে
+      allow delete: if isSA() || (signedIn() && resource.data.status == 'pending' && resource.data.ownerUid == me());
+
+      // ----- সদস্য ও রোল -----
+      match /members/{m} {
+        allow get: if signedIn() && (me() == m || isMoney(t) || isSA());
+        allow list: if isMoney(t) || isSA();
+        allow create: if (isSA() || isTAdmin(t)
+            // নিবন্ধনের সময় মালিক নিজেকে admin বানাতে পারে (শুধু pending অবস্থায়)
+            || (signedIn() && me() == m && request.resource.data.role == 'admin'
+                && tdoc(t).ownerUid == me() && tdoc(t).status == 'pending'))
+          && validMember();
+        allow update: if ((isSA() || isTAdmin(t)) && validMember())
+          // ব্যবহারকারী নিজে শুধু "পাসওয়ার্ড বদলাতে হবে" ফ্ল্যাগ বন্ধ করতে পারবে
+          || (signedIn() && me() == m
+              && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['mc'])
+              && request.resource.data.mc == false);
+        allow delete: if isSA() || isTAdmin(t);
+      }
+
+      // ----- মাদরাসার রেকর্ড (সাবস্ক্রিপশন চালু না থাকলে পড়া-লেখা দুটোই বন্ধ) -----
+      match /records/{r} {
+        function validRec() {
+          let d = request.resource.data;
+          return d.keys().hasOnly(['c', 'i', 'j', 'u', 'd', 'o'])
+              && d.c is string && d.i is string && d.j is string
+              && d.u is int && d.d is bool
+              && r == d.c + '~' + d.i;
+        }
+        allow get, list: if isSA() || (isStaff(t) && writable(t));
+        allow create, update: if validRec() && (isSA() || (writable(t) && (
+            isMoney(t) || (isStaff(t) && request.resource.data.c in ['notices', 'routine', 'exams']))));
+        allow delete: if isSA() || (writable(t) && isMoney(t));
+      }
+
+      // ----- শিক্ষার্থী পোর্টাল (আলাদা, নিরাপদ কপি) -----
+      match /pub/{p} {
+        allow get: if isSA() || (isMember(t) && writable(t) && (
+            roleOf(t) != 'student'
+            || p == 'notices' || p == 'cfg'
+            || p == ('p_' + get(mpath(t)).data.sid)));
+        allow list: if isSA() || (isMoney(t) && writable(t));
+        allow write: if isSA() || (writable(t) && isMoney(t));
+      }
+    }
+
+    // ---------- সাবস্ক্রিপশন পেমেন্ট অনুরোধ ----------
+    match /payments/{id} {
+      allow create: if signedIn() && isTAdmin(request.resource.data.t) && validPay(id);
+      allow get, list: if isSA() || (signedIn() && isTAdmin(resource.data.t));
+      allow update, delete: if isSA();
+    }
+
+    // ---------- প্যাকেজ ও প্ল্যাটফর্ম সেটিং ----------
+    match /plans/{p} {
+      allow read: if signedIn();
+      allow write: if isSA();
+    }
+    match /platform/{d} {
+      allow read: if signedIn();
+      allow write: if isSA();
+    }
+
+    // ---------- পুরোনো ক্লাউড ব্যাকআপ: শুধু পড়া ----------
+    match /madrasaData/{id} {
+      allow read: if signedIn() && resource.data.ownerUid == me();
+      allow write: if false;
+      match /chunks/{c} {
+        allow read: if signedIn()
+          && get(/databases/$(database)/documents/madrasaData/$(id)).data.ownerUid == me();
+        allow write: if false;
+      }
+    }
+    match /backups/{id} {
+      allow read: if signedIn() && id.matches('^' + me() + '(_.*)?$');
+      allow write: if false;
+      match /chunks/{c} {
+        allow read: if signedIn() && id.matches('^' + me() + '(_.*)?$');
+        allow write: if false;
+      }
+    }
+  }
+}
