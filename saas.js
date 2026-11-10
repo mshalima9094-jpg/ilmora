@@ -633,15 +633,43 @@ const saApprove = id => { const t = SAD.T.find(x => x.id === id); saSet(id, { st
 const saTog = id => { const t = SAD.T.find(x => x.id === id); if (t) saSet(id, { status: t.status === 'suspended' ? 'active' : 'suspended' }) };
 const saPlan = (id, v) => saSet(id, { plan: v });
 function saExt(id, days) { const t = SAD.T.find(x => x.id === id); if (!t) return; const base = Math.max(now(), t.expiresAt || 0); saSet(id, { expiresAt: days ? base + days * 864e5 : 0 }) }
-async function tenantPurge(tid) {
-  for (const sub of ['records', 'pub', 'members']) {
-    const l = await listDocs('tenants/' + tid + '/' + sub);
-    for (let i = 0; i < l.length; i += 400) await commit(l.slice(i, i + 400).map(d => ({ delete: docName('tenants/' + tid + '/' + sub + '/' + d._id) })));
-    if (sub === 'members') for (const m of l) { try { await delDoc('utn/' + m._id) } catch (e) { } }
-  }
-  await delDoc('tenants/' + tid);
+async function listNames(path) {          // ডকুমেন্টের পুরো নামসহ তালিকা (আইডিতে বিশেষ অক্ষর থাকলেও মোছা যায়)
+  const out = []; let tok = '';
+  do { const j = await api('GET', path, null, '?pageSize=300' + (tok ? '&pageToken=' + encodeURIComponent(tok) : '')); if (!j) break; (j.documents || []).forEach(d => out.push(d)); tok = j.nextPageToken || '' } while (tok);
+  return out;
 }
-async function saDel(id) { if (!saOk()) return; try { await tenantPurge(id); toast('ক্লাউড থেকে মুছে ফেলা হয়েছে (এই ফোনের কপি অক্ষত)'); await saLoad() } catch (e) { toast(msgOf(e)) } }
+async function delMany(docs) { for (let i = 0; i < docs.length; i += 100) await commit(docs.slice(i, i + 100).map(d => ({ delete: d.name }))) }
+async function tenantPurge(tid) {          // যেকোনো মাদরাসা (সক্রিয়/বন্ধ/পেন্ডিং/অর্ধেক-মোছা) পুরোপুরি মোছে
+  if (!safeId(tid)) throw new Error('মাদরাসার আইডি সঠিক নয়');
+  await delMany(await listNames('tenants/' + tid + '/records'));
+  await delMany(await listNames('tenants/' + tid + '/pub'));
+  try {                                    // অপেক্ষমাণ পেমেন্ট বাতিল (অনুমোদিত/বাতিল পেমেন্ট হিসাবের জন্য থাকে; TrxID পুনর্ব্যবহার ঠেকাতে মোছা হয় না)
+    const pr = await runQuery('', { from: [{ collectionId: 'payments' }], where: { fieldFilter: { field: { fieldPath: 't' }, op: 'EQUAL', value: { stringValue: tid } } }, limit: 200 });
+    for (const x of pr) { if (!x.document) continue; const d = dd(x.document); if (d.st === 'pending') await setDoc('payments/' + d._id, { st: 'rejected' }, ['st']) }
+  } catch (e) { }
+  const ms = await listNames('tenants/' + tid + '/members');
+  for (const m of ms) { const u = decodeURIComponent(m.name.split('/').pop()); try { const x = await getDoc('utn/' + u); if (x && x.t === tid) await delDoc('utn/' + u) } catch (e) { } }
+  await delMany(ms);
+  await delDoc('tenants/' + tid);          // সবার শেষে; মাঝপথে থামলে আবার চেষ্টা করা যাবে
+}
+async function saDel(id) {
+  if (!saOk()) return;
+  try { await tenantPurge(id); toast('মাদরাসা ক্লাউড থেকে মুছে ফেলা হয়েছে'); await saLoad() } catch (e) { toast('মোছা যায়নি: ' + msgOf(e)); await saLoad() }
+}
+const saUnpaid = () => { const paid = new Set(SAD.pay.map(p => p.t)); return SAD.T.filter(t => t.status === 'pending' && !paid.has(t.id)) };   // পেমেন্ট জমা না দেওয়া নিবন্ধন
+async function saClean() {
+  if (!saOk()) return; const L = saUnpaid(); if (!L.length) return;
+  if (!confirm(bn(L.length) + 'টি পেমেন্টহীন অসম্পূর্ণ নিবন্ধন মুছে ফেলবেন? (এদের কেউ পেমেন্ট জমা দেয়নি)')) return;
+  let n = 0;
+  for (const t of L) {
+    try {
+      const r = await runQuery('', { from: [{ collectionId: 'payments' }], where: { fieldFilter: { field: { fieldPath: 't' }, op: 'EQUAL', value: { stringValue: t.id } } }, limit: 1 });
+      if (r.some(x => x.document)) continue;                       // যেকোনো পেমেন্ট থাকলে মোছা হবে না
+      await tenantPurge(t.id); n++;
+    } catch (e) { }
+  }
+  toast(bn(n) + 'টি মুছে ফেলা হয়েছে'); await saLoad();
+}
 async function saEnter(id) {
   if (!saOk()) return;
   let t = null; try { t = await getDoc('tenants/' + id) } catch (e) { }
@@ -670,6 +698,7 @@ async function saReset(id) {
 }
 async function payOk(id, yes) {
   if (!saOk()) return; const p = SAD.pay.find(x => x.id === id), t = p && SAD.T.find(x => x.id === p.t); if (!p) return;
+  if (yes && !t) return toast('এই মাদরাসাটি আর নেই; অনুমোদন করা যাবে না — বাতিল করুন');
   try {
     if (yes && t) {
       const o = { plan: p.plan, expiresAt: Math.max(now(), t.expiresAt || 0) + 30 * 864e5 };
@@ -679,30 +708,58 @@ async function payOk(id, yes) {
     await setDoc('payments/' + id, { st: yes ? 'approved' : 'rejected' }, ['st']); toast(yes ? 'পেমেন্ট অনুমোদিত — ৩০ দিন যুক্ত হয়েছে' : 'প্রত্যাখ্যাত'); await saLoad();
   } catch (e) { toast(msgOf(e)) }
 }
+const LOCKABLE = () => NAV.filter(n => !['sa', 'dash', 'setup'].includes(n[0]));   // প্যাকেজে চালু/বন্ধ করা যায় এমন পাতা
 async function planSave(e) {
-  e.preventDefault(); if (!saOk()) return false; const d = Object.fromEntries(new FormData(e.target)), id = String(d.id || '').trim().toLowerCase();
+  e.preventDefault(); if (!saOk()) return false;
+  const f = e.target, d = Object.fromEntries(new FormData(f)), id = String(d.id || '').trim().toLowerCase();
   if (!/^[a-z0-9_]{2,20}$/.test(id) || id === 'none') return toast('আইডি: ইংরেজি ছোট হাতের অক্ষর/সংখ্যা (none নয়)'), false;
-  try { await setDoc('plans/' + id, { name: d.name, price: +en(d.price) || 0, maxStudents: +en(d.ms) || 0, maxUsers: +en(d.mu) || 0, portal: d.portal === '1', lock: lines(String(d.lock || '').replace(/[,،]/g, '\n')), perks: lines(String(d.perks || '')), order: +en(d.ord) || 9, note: d.note || '' }); toast('প্যাকেজ সংরক্ষিত'); await saLoad() } catch (x) { toast(msgOf(x)) }
+  const price = Math.round(+en(d.price)); if (!(price >= 0) || price > 100000) return toast('মূল্য ০ থেকে ১,০০,০০০ টাকার মধ্যে দিন'), false;
+  const on = new Set([...f.querySelectorAll('input[name=pg]:checked')].map(x => x.value));
+  const lock = LOCKABLE().map(n => n[0]).filter(x => !on.has(x));
+  try { await setDoc('plans/' + id, { name: String(d.name || '').trim() || id, price, maxStudents: Math.max(0, Math.round(+en(d.ms)) || 0), maxUsers: Math.max(0, Math.round(+en(d.mu)) || 0), portal: d.portal === '1', lock, perks: lines(String(d.perks || '')), order: +en(d.ord) || 9, note: String(d.note || '') }); toast('প্যাকেজ সংরক্ষিত'); await saLoad() } catch (x) { toast(msgOf(x)) }
   return false;
+}
+async function planDel(id) {
+  if (!saOk()) return; const n = SAD.T.filter(t => t.plan === id).length;
+  if (n) return toast('এই প্যাকেজে ' + bn(n) + 'টি মাদরাসা আছে; আগে তাদের অন্য প্যাকেজে সরান');
+  if (!confirm('এই প্যাকেজ মুছে ফেলবেন?')) return;
+  try { await delDoc('plans/' + id); toast('প্যাকেজ মুছে ফেলা হয়েছে'); await saLoad() } catch (x) { toast(msgOf(x)) }
 }
 async function platSave(e) {
-  e.preventDefault(); if (!saOk()) return false; const d = Object.fromEntries(new FormData(e.target));
-  try { await setDoc('platform/settings', { bkash: en(d.bkash).trim(), nagad: en(d.nagad).trim(), rocket: en(d.rocket).trim() }); toast('সংরক্ষিত'); await saLoad() } catch (x) { toast(msgOf(x)) }
+  e.preventDefault(); if (!saOk()) return false; const d = Object.fromEntries(new FormData(e.target)), o = {};
+  for (const k of ['bkash', 'nagad', 'rocket']) { o[k] = en(d[k]).replace(/[^\d]/g, ''); if (!/^\d{10,15}$/.test(o[k])) return toast('নম্বরটি সঠিক নয় (১০–১৫ সংখ্যা): ' + { bkash: 'বিকাশ', nagad: 'নগদ', rocket: 'রকেট' }[k]), false }
+  try { await setDoc('platform/settings', o); PLAT = o; toast('পেমেন্ট নম্বর সংরক্ষিত — সব মাদরাসার পেমেন্ট পাতায় এখন থেকে এই নম্বর দেখাবে'); await saLoad() } catch (x) { toast(msgOf(x)) }
   return false;
 }
-const planForm = p => `<form onsubmit="return FBX.planSave(event)" style="border-top:1px solid var(--b);padding-top:8px;margin-top:8px"><div class="fg">${inp('আইডি', 'id', `required value="${esc(p.id || '')}" ${p.id ? 'readonly' : ''}`)}${inp('নাম', 'name', `required value="${esc(p.name || '')}"`)}${inp('মাসিক মূল্য (৳)', 'price', `inputmode="numeric" value="${p.price || 0}"`)}${inp('সর্বোচ্চ শিক্ষার্থী (০=সীমাহীন)', 'ms', `inputmode="numeric" value="${p.maxStudents || 0}"`)}${inp('সর্বোচ্চ ইউজার (০=সীমাহীন)', 'mu', `inputmode="numeric" value="${p.maxUsers || 0}"`)}${inp('ক্রম', 'ord', `inputmode="numeric" value="${p.order || 9}"`)}</div><label>সুবিধা (প্রতি লাইনে একটি)<textarea name="perks" rows="4">${esc((p.perks || []).join('\n'))}</textarea></label>${inp('বন্ধ পাতা (কমা দিয়ে; যেমন canteen,report)', 'lock', `value="${esc((p.lock || []).join(','))}"`)}<label>শিক্ষার্থী পোর্টাল<select name="portal"><option value="1" ${p.portal ? 'selected' : ''}>আছে</option><option value="0" ${p.portal ? '' : 'selected'}>নেই</option></select></label>${inp('মন্তব্য', 'note', `value="${esc(p.note || '')}"`)}<button class="btn s">${p.id ? 'সংরক্ষণ' : 'যোগ করুন'}</button></form>`;
+const planForm = p => {
+  const isNew = !p.id, lk = p.lock || [];
+  return `<form onsubmit="return FBX.planSave(event)" style="border-top:1px solid var(--b);padding-top:10px;margin-top:10px">${isNew ? '' : `<div class="row"><b style="font-size:17px">${esc(p.name)}</b><b>${tk(p.price)}/মাস</b></div>`}<div class="fg">${inp('আইডি (ইংরেজি)', 'id', `required value="${esc(p.id || '')}" ${p.id ? 'readonly' : ''}`)}${inp('নাম', 'name', `required value="${esc(p.name || '')}"`)}${inp('মাসিক মূল্য (৳)', 'price', `required inputmode="numeric" value="${p.price || 0}"`)}${inp('সর্বোচ্চ শিক্ষার্থী (০=সীমাহীন)', 'ms', `inputmode="numeric" value="${p.maxStudents || 0}"`)}${inp('সর্বোচ্চ ইউজার (০=সীমাহীন)', 'mu', `inputmode="numeric" value="${p.maxUsers || 0}"`)}${inp('ক্রম', 'ord', `inputmode="numeric" value="${p.order || 9}"`)}</div>
+  <div style="margin-top:8px"><b style="font-size:14px">✅ চালু ফিচার <small style="font-weight:400;color:var(--m)">(টিক দেওয়া পাতা এই প্যাকেজে পাওয়া যাবে)</small></b>${LOCKABLE().map(n => `<label style="display:flex;gap:8px;align-items:center;margin:6px 0"><input type="checkbox" name="pg" value="${esc(n[0])}" ${isNew || !lk.includes(n[0]) ? 'checked' : ''} style="width:auto;margin:0"> ${esc(n[2])} ${esc(n[1])}</label>`).join('')}</div>
+  <label>শিক্ষার্থী পোর্টাল<select name="portal"><option value="1" ${p.portal ? 'selected' : ''}>আছে</option><option value="0" ${p.portal ? '' : 'selected'}>নেই</option></select></label>
+  <label>সুবিধার তালিকা — পেমেন্ট পাতায় যা দেখাবে (প্রতি লাইনে একটি)<textarea name="perks" rows="5">${esc((p.perks || []).join('\n'))}</textarea></label>${inp('মন্তব্য (প্যাকেজের নিচে ছোট লেখা)', 'note', `value="${esc(p.note || '')}"`)}
+  <div class="f2" style="margin-top:6px"><button class="btn s">${isNew ? 'প্যাকেজ যোগ করুন' : 'সংরক্ষণ'}</button>${isNew ? '' : `<button type="button" class="x" onclick="FBX.planDel('${jx(p.id)}')">প্যাকেজ মুছুন</button>`}</div></form>`;
+};
+let SAT = '';
+const saTab = t => { SAT = t; render() };
 PG.sa = () => {
   if (ROLE() != 'সুপার এডমিন') return '';
-  const T = SAD.T, pl = PLANS || DEFPLANS, pend = T.filter(x => x.status === 'pending'), pt = bdPlat();
-  const loc = REG.tenants.filter(t => !T.some(x => x.id === t.id));
-  return `${SAD.err ? `<div class="card"><b class="rd">লোড হয়নি:</b> ${esc(SAD.err)} <button class="btn s o" onclick="FBX.saLoad()">আবার</button></div>` : !SAD.ok ? '<div class="card"><p class="em">লোড হচ্ছে… (ইন্টারনেট দরকার)</p></div>' : ''}
-  ${pend.length ? `<div class="card" style="border:2px solid var(--p)"><b>⏳ নতুন নিবন্ধন — পেমেন্টের অপেক্ষায় (${bn(pend.length)})</b>${pend.map(t => `<div class="row"><div><b>${esc(t.name)}</b><small>${dt(t.createdAt)}</small></div><div class="r"><button class="btn s" onclick="FBX.saApprove('${jx(t.id)}')">৩০ দিন চালু করুন</button><button class="x" onclick="if(!this.dataset.s){this.dataset.s=1;this.textContent='নিশ্চিত?';return}FBX.saDel('${jx(t.id)}')">বাতিল</button></div></div>`).join('')}</div>` : ''}
-  ${SAD.pay.length ? `<div class="card" style="border:2px solid var(--p)"><b>💳 পেমেন্ট অনুরোধ (${bn(SAD.pay.length)})</b>${SAD.pay.map(p => { const t = T.find(x => x.id === p.t); return `<div class="row" style="flex-wrap:wrap"><div style="flex:1"><b>${esc(t ? t.name : p.t)}</b><small>${esc(planOf(p.plan).name)} · ${tk(p.amt)} · ${esc(p.method)} · TrxID ${esc(p.trx)} · ${esc(p.from)}</small></div><div class="r"><button class="btn s" onclick="FBX.payOk('${jx(p.id)}',1)">অনুমোদন</button><button class="x" onclick="FBX.payOk('${jx(p.id)}',0)">বাতিল</button></div></div>` }).join('')}</div>` : ''}
-  <div class="card"><details><summary>＋ নতুন মাদরাসার একাউন্ট তৈরি</summary><form onsubmit="return FBX.saNew(event)">${inp('মাদরাসার নাম', 'name', 'required')}${inp('অ্যাডমিনের নাম', 'an', 'required')}${inp('অ্যাডমিনের Gmail (লগইন আইডি)', 'em', 'required type="email" inputmode="email"')}<label>অস্থায়ী পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)<input type="password" name="pw" required minlength="8" autocomplete="new-password"></label><label>প্যাকেজ<select name="plan">${pl.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label><button class="btn">একাউন্ট তৈরি করুন</button></form></details></div>
-  <div class="card"><b>মাদরাসার একাউন্টসমূহ (${bn(T.length)})</b>${T.map(t => `<div class="row" style="flex-wrap:wrap"><div style="flex:1;min-width:170px"><b>${esc(t.name)}</b><small>${stBadge(t.status)} · প্যাকেজ: ${esc(planOf(t.plan).name)} · মেয়াদ: ${t.expiresAt ? dt(t.expiresAt) + (t.expiresAt < now() ? ' <span class="rd">(শেষ)</span>' : '') : 'মেয়াদহীন'}</small></div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="btn s" onclick="FBX.saEnter('${jx(t.id)}')">প্রবেশ</button><select onchange="FBX.saPlan('${jx(t.id)}',this.value)" style="width:auto">${pl.map(p => `<option value="${esc(p.id)}" ${p.id === t.plan ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="btn s o" onclick="FBX.saExt('${jx(t.id)}',30)">+১ মাস</button><button class="btn s o" onclick="FBX.saExt('${jx(t.id)}',365)">+১ বছর</button><button class="btn s o" onclick="FBX.saExt('${jx(t.id)}',0)">মেয়াদহীন</button>${t.status === 'pending' ? `<button class="btn s" onclick="FBX.saApprove('${jx(t.id)}')">অনুমোদন</button>` : `<button class="btn s o" onclick="FBX.saTog('${jx(t.id)}')">${t.status === 'suspended' ? 'চালু করুন' : 'বন্ধ করুন'}</button>`}<button class="btn s o" onclick="FBX.saReset('${jx(t.id)}')">অ্যাডমিন পাসওয়ার্ড রিসেট</button><button class="x" onclick="if(!this.dataset.s){this.dataset.s=1;this.textContent='নিশ্চিত? ক্লাউডের সব তথ্য মুছবে';return}FBX.saDel('${jx(t.id)}')">মুছুন</button></div></div>`).join('') || '<p class="em">কোনো একাউন্ট নেই</p>'}</div>
-  <div class="card"><b>📦 প্যাকেজ সেটিং</b><p class="em" style="text-align:left">মূল্য, সীমা ও বন্ধ পাতা যেকোনো সময় বদলানো যায়। পাতার আইডি: ${NAV.map(n => n[0]).filter(x => x != 'sa').join(', ')}</p>${pl.map(planForm).join('')}<details style="margin-top:10px"><summary>＋ নতুন প্যাকেজ</summary>${planForm({})}</details></div>
-  <div class="card"><b>💳 পেমেন্ট নম্বর</b><form onsubmit="return FBX.platSave(event)"><div class="fg">${inp('বিকাশ', 'bkash', `required inputmode="tel" value="${esc(pt.bkash)}"`)}${inp('নগদ', 'nagad', `required inputmode="tel" value="${esc(pt.nagad)}"`)}${inp('রকেট', 'rocket', `required inputmode="tel" value="${esc(pt.rocket)}"`)}</div><button class="btn">সংরক্ষণ</button></form><small style="color:var(--m)">এই নম্বর সব মাদরাসার সাবস্ক্রিপশন পাতায় দেখাবে।</small></div>
+  const T = SAD.T, pl = PLANS || DEFPLANS, un = new Set(saUnpaid().map(t => t.id)), vis = T.filter(t => !un.has(t.id)), hid = T.length - vis.length, pt = bdPlat();
+  const tab = SAT || (SAD.pay.length ? 'req' : 'mad');
+  const tb = (id, l) => `<button class="${tab === id ? 'on' : ''}" onclick="FBX.saTab('${id}')">${l}</button>`;
+  const head = SAD.err ? `<div class="card"><b class="rd">লোড হয়নি:</b> ${esc(SAD.err)} <button class="btn s o" onclick="FBX.saLoad()">আবার</button></div>` : !SAD.ok ? '<div class="card"><p class="em">লোড হচ্ছে… (ইন্টারনেট দরকার)</p></div>' : '';
+  let body = '';
+  if (tab === 'req') {
+    body = `<div class="card"${SAD.pay.length ? ' style="border:2px solid var(--p)"' : ''}><b>💳 পেমেন্ট অনুরোধ (${bn(SAD.pay.length)})</b><p class="em" style="text-align:left">শুধু যারা পেমেন্ট জমা দিয়েছেন তাদের অনুরোধই এখানে আসে। বিকাশ/নগদ/রকেটের অ্যাপে TrxID ও টাকা মিলিয়ে অনুমোদন দিন; অনুমোদনে ৩০ দিন যুক্ত হয়।</p>${SAD.pay.map(p => { const t = T.find(x => x.id === p.t), pr = planOf(p.plan).price; return `<div class="row" style="flex-wrap:wrap"><div style="flex:1;min-width:170px"><b>${esc(t ? t.name : 'মুছে ফেলা মাদরাসা')}</b><small>${esc(planOf(p.plan).name)} · ${tk(p.amt)} · ${esc(p.method)} · TrxID ${esc(p.trx)} · ${esc(p.from)} · ${dt(p.at)}</small>${pr && p.amt !== pr ? `<small class="rd">⚠ প্যাকেজের বর্তমান মূল্য ${tk(pr)}; পাঠানো টাকা মিলিয়ে দেখুন</small>` : ''}</div><div class="r" style="gap:6px">${t ? `<button class="btn s" onclick="FBX.payOk('${jx(p.id)}',1)">অনুমোদন</button>` : ''}<button class="x" onclick="FBX.payOk('${jx(p.id)}',0)">বাতিল</button></div></div>` }).join('') || '<p class="em">কোনো পেমেন্ট অনুরোধ নেই</p>'}</div>`;
+  } else if (tab === 'mad') {
+    body = `<div class="card"><details><summary>＋ নতুন মাদরাসার একাউন্ট তৈরি</summary><form onsubmit="return FBX.saNew(event)">${inp('মাদরাসার নাম', 'name', 'required')}${inp('অ্যাডমিনের নাম', 'an', 'required')}${inp('অ্যাডমিনের Gmail (লগইন আইডি)', 'em', 'required type="email" inputmode="email"')}<label>অস্থায়ী পাসওয়ার্ড (কমপক্ষে ৮ অক্ষর)<input type="password" name="pw" required minlength="8" autocomplete="new-password"></label><label>প্যাকেজ<select name="plan">${pl.map(p => `<option value="${esc(p.id)}">${esc(p.name)}</option>`).join('')}</select></label><button class="btn">একাউন্ট তৈরি করুন</button></form></details></div>
+  <div class="card"><b>🏫 মাদরাসার একাউন্টসমূহ (${bn(vis.length)})</b>${vis.map(t => `<div class="row" style="flex-wrap:wrap"><div style="flex:1;min-width:170px"><b>${esc(t.name)}</b><small>${stBadge(t.status)} · প্যাকেজ: ${esc(planOf(t.plan).name)} · মেয়াদ: ${t.expiresAt ? dt(t.expiresAt) + (t.expiresAt < now() ? ' <span class="rd">(শেষ)</span>' : '') : 'মেয়াদহীন'}</small></div><div class="r" style="gap:6px;flex-wrap:wrap"><button class="btn s" onclick="FBX.saEnter('${jx(t.id)}')">প্রবেশ</button><select onchange="FBX.saPlan('${jx(t.id)}',this.value)" style="width:auto">${pl.map(p => `<option value="${esc(p.id)}" ${p.id === t.plan ? 'selected' : ''}>${esc(p.name)}</option>`).join('')}</select><button class="btn s o" onclick="FBX.saExt('${jx(t.id)}',30)">+১ মাস</button><button class="btn s o" onclick="FBX.saExt('${jx(t.id)}',365)">+১ বছর</button><button class="btn s o" onclick="FBX.saExt('${jx(t.id)}',0)">মেয়াদহীন</button>${t.status === 'pending' ? '' : `<button class="btn s o" onclick="FBX.saTog('${jx(t.id)}')">${t.status === 'suspended' ? 'চালু করুন' : 'বন্ধ করুন'}</button>`}<button class="btn s o" onclick="FBX.saReset('${jx(t.id)}')">অ্যাডমিন পাসওয়ার্ড রিসেট</button><button class="x" onclick="if(!this.dataset.s){this.dataset.s=1;this.textContent='নিশ্চিত? ক্লাউডের সব তথ্য মুছবে';return}FBX.saDel('${jx(t.id)}')">🗑 মুছুন</button></div></div>`).join('') || '<p class="em">কোনো একাউন্ট নেই</p>'}${hid ? `<p class="em" style="text-align:left">পেমেন্ট জমা না দেওয়া ${bn(hid)}টি অসম্পূর্ণ নিবন্ধন তালিকায় দেখানো হচ্ছে না। <button class="btn s o" onclick="FBX.saClean()">এগুলো মুছে ফেলুন</button></p>` : ''}</div>`;
+  } else if (tab === 'pkg') {
+    body = `<div class="card"><b>📦 প্যাকেজ — মূল্য ও সুবিধা</b><p class="em" style="text-align:left">মূল্য, সীমা, চালু ফিচার ও সুবিধার তালিকা যেকোনো সময় বদলানো যায়। সংরক্ষণ করলে সব মাদরাসার পেমেন্ট পাতায় নতুন মূল্য/সুবিধা দেখাবে; ফিচার বদল চালু মাদরাসাগুলোতেও কার্যকর হবে।</p>${pl.map(planForm).join('')}<details style="margin-top:12px"><summary>＋ নতুন প্যাকেজ</summary>${planForm({})}</details></div>`;
+  } else {
+    body = `<div class="card"><b>💳 পেমেন্ট নম্বর</b><p class="em" style="text-align:left">মাদরাসাগুলো এই নম্বরে Send Money করবে। বদলালে সব মাদরাসার পেমেন্ট পাতায় সাথে সাথে নতুন নম্বর দেখাবে।</p><form onsubmit="return FBX.platSave(event)"><div class="fg">${inp('বিকাশ', 'bkash', `required inputmode="tel" value="${esc(pt.bkash)}"`)}${inp('নগদ', 'nagad', `required inputmode="tel" value="${esc(pt.nagad)}"`)}${inp('রকেট', 'rocket', `required inputmode="tel" value="${esc(pt.rocket)}"`)}</div><button class="btn">সংরক্ষণ</button></form></div>
   <div class="card"><b>সুপার এডমিন: ${esc(CTX.name || '')}</b><small>UID: ${esc(CTX.uid)}</small><div class="f2" style="margin-top:8px"><button class="btn s o" onclick="FBX.cpw()">🔑 পাসওয়ার্ড বদলান</button><button class="btn s o" onclick="FBX.saLoad()">⟳ রিফ্রেশ</button></div></div>`;
+  }
+  return `${head}<div class="xt">${tb('req', '💳 পেমেন্ট' + (SAD.pay.length ? ' (' + bn(SAD.pay.length) + ')' : ''))}${tb('mad', '🏫 মাদরাসা')}${tb('pkg', '📦 প্যাকেজ')}${tb('set', '⚙️ পেমেন্ট নম্বর')}</div>${body}`;
 };
 
 /* ---------- সাবস্ক্রিপশন (মাদরাসার অ্যাডমিনের পাতা) ---------- */
@@ -733,7 +790,7 @@ function cloudUI() {
   <div class="row"><span>ব্যবহারকারী</span><b>${esc(CTX.name || CTX.em || '')} · ${esc(CTX.sa ? 'সুপার এডমিন' : RC[CTX.role] || '')}</b></div>
   <div class="row"><span>মাদরাসা</span><b>${esc(TM ? TM.name : '—')}</b></div>
   <div class="row"><span>অবস্থা</span><b>${navigator.onLine ? 'অনলাইন' : 'অফলাইন'} · ${SY.err && SY.err != 'reauth' ? '<span class="rd">' + esc(SY.err) + '</span>' : p ? 'আপলোড বাকি: ' + bn(p) : 'আপ-টু-ডেট'}</b></div>
-  <div class="row"><span>সর্বশেষ সিঙ্ক</span><b>${SY.last ? new Date(SY.last).toLocaleString('bn-BD') : '—'}</b></div>
+  <div class="row"><span>সর্বশেষ সিঙ্ক</span><b>${SY.last ? new Date(SY.last).toLocaleString('bn-BD', { hour12: true }) : '—'}</b></div>
   <div class="f2" style="margin-top:10px"><button class="btn" onclick="FBX.sync('connect');toast('সিঙ্ক শুরু')">এখনই সিঙ্ক</button>${stu ? '' : '<button class="btn o" onclick="if(!this.dataset.s){this.dataset.s=1;this.textContent=\'নিশ্চিত?\';return}FBX.resync()">ক্লাউড থেকে নতুন করে মেলান</button>'}</div>
   <div class="f2" style="margin-top:10px"><button class="btn o" onclick="FBX.cpw()">🔑 পাসওয়ার্ড বদলান</button><button class="btn" style="background:var(--r)" onclick="logout()">লগআউট</button></div>
   ${stu || ls.g(K + ':pre') === null ? '' : '<div class="f2" style="margin-top:10px"><button class="btn o" onclick="FBX.undoRestore()">↶ শেষ রিস্টোর বাতিল করুন</button></div>'}
@@ -857,7 +914,7 @@ async function cf(method, name, blob) {
 W.login = login; W.logout = logout; W.saEnter = saEnter; W.saHome = saHome;
 W.FBX = {
   me: meF, ro: isExp, gate, onSave, boot, login, register, regUI, cpw, reauth, cloudUI, within, pageOk, bk, restoreFile, restoreText, undoRestore, resync, wipe, sync, connect, online,
-  memAdd, memEdit, memSave, memReset, memToggle, memDel, saLoad, saApprove, saTog, saPlan, saExt, saDel, saEnter, saNew, saReset, payOk, planSave, platSave, payReq, forgot, verCheck, verResend, regComplete, cfPut: (n, b) => cf('PUT', n, b), cfGet: n => cf('GET', n), cfDel: n => cf('DELETE', n),
+  memAdd, memEdit, memSave, memReset, memToggle, memDel, saLoad, saTab, saClean, planDel, saApprove, saTog, saPlan, saExt, saDel, saEnter, saNew, saReset, payOk, planSave, platSave, payReq, forgot, verCheck, verResend, regComplete, cfPut: (n, b) => cf('PUT', n, b), cfGet: n => cf('GET', n), cfDel: n => cf('DELETE', n),
   holdOk, holdNo, confKeep: conflictsKeep, confClear: () => { SY.conf = []; syPersist(); render() },
   _t: { pubSync, get MEM() { return MEM }, explode, scan, pull, push, SY, applyRemote, get CTX() { return CTX }, set CTX(v) { CTX = v }, get TM() { return TM }, set TM(v) { TM = v }, applyCtx, makeUser, phKey, hs }
 };
