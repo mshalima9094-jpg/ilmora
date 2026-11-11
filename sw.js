@@ -1,5 +1,5 @@
-const C='ilmora-v33';
-self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>c.addAll(['./','index.html','saas.js','manifest.json','icon.svg','icon-192.png','icon-512.png','icon-maskable-512.png','apple-touch-icon.png','designs/adm_border.jpg','designs/adm_seal.png','designs/d1.png','designs/d2.png','designs/d3.png','designs/n1.jpg','designs/n2.jpg','designs/n3.jpg','designs/n4.jpg','designs/wm_logo.png'])).then(()=>self.skipWaiting()))});
+const C='ilmora-v40';
+self.addEventListener('install',e=>{e.waitUntil(caches.open(C).then(c=>Promise.all(['./','index.html','saas.js','manifest.json','icon.svg','icon-192.png','icon-512.png','icon-maskable-512.png','apple-touch-icon.png','designs/adm_seal.png','fonts/nf1.woff','fonts/nf2.woff','fonts/nf3.woff','fonts/nf4.woff','fonts/nf5.woff','fonts/nf6.woff','fonts/nf7.woff','fonts/nf8.woff','fonts/nf9.woff','fonts/nf10.woff','fonts/nf11.woff','fonts/nf12.woff','fonts/nf13.woff','designs/adm1.png','designs/adm2.png','designs/adm3.png','designs/adm4.png'].map(u=>c.add(u).catch(()=>0)))).then(()=>self.skipWaiting()))});
 self.addEventListener('activate',e=>e.waitUntil(caches.keys().then(k=>Promise.all(k.filter(x=>x!=C).map(x=>caches.delete(x)))).then(()=>clients.claim())));
 self.addEventListener('fetch',e=>{const r=e.request,u=new URL(r.url);if(r.method!='GET')return;if(u.origin!=location.origin&&!/^(fonts\.|cdnjs\.cloudflare\.com$)/.test(u.hostname))return;
 e.respondWith(fetch(r).then(x=>{if(x.ok||x.type=='opaque')caches.open(C).then(c=>c.put(r,x.clone()));return x}).catch(()=>caches.match(r)))});
