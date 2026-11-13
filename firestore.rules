@@ -15,7 +15,7 @@ rules_version = '2';
 //   tenants/{t}/members/{uid}         -> সদস্য ও রোল (admin/accountant/teacher/student)
 //   tenants/{t}/records/{c~id}        -> মাদরাসার সব রেকর্ড
 //   tenants/{t}/pub/{doc}             -> শিক্ষার্থী-পোর্টালের জন্য আলাদা নিরাপদ ডকুমেন্ট
-//   payments/{tx_<b|n|r>_<TRXID>}     -> সাবস্ক্রিপশন পেমেন্ট অনুরোধ (ডকুমেন্ট আইডিই TrxID; দ্বিতীয়বার জমা অসম্ভব)
+//   payments/{tx_<TRXID>}             -> সাবস্ক্রিপশন পেমেন্ট অনুরোধ (ডকুমেন্ট আইডিই TrxID; একই TrxID দুইবার/তিন মাধ্যমে জমা অসম্ভব)
 //   plans/{id}, platform/{doc}        -> প্যাকেজ ও পেমেন্ট নম্বর (যাচাইকৃত ইউজার পড়বে, শুধু Super Admin লিখবে)
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -56,7 +56,7 @@ service cloud.firestore {
           && d.trx is string && d.trx.matches('^[A-Z0-9]{6,30}$')
           && d.from is string && d.from.size() <= 20
           && d.at is int
-          && id == 'tx_' + d.mk + '_' + d.trx;
+          && id == 'tx_' + d.trx;
     }
 
     // ---------- প্ল্যাটফর্ম মালিক ----------
@@ -125,9 +125,16 @@ service cloud.firestore {
           return d.keys().hasOnly(['c', 'i', 'j', 'u', 'd', 'o'])
               && d.c is string && d.i is string && d.j is string
               && d.u is int && d.d is bool
-              && r == d.c + '~' + d.i;
+              // ছবির সীমা অ্যাপ নিজে মানে (ছবি ৫০KB, স্বাক্ষর ২৫KB, সিভি/সনদ ২০০KB ইত্যাদি); সার্ভারে এক রেকর্ডের সর্বোচ্চ আকার বাঁধা, যাতে অ্যাপ এড়িয়ে ভারি ছবি ঢোকানো না যায়
+              && d.j.size() <= 800000
+              && r == d.c + '~' + d.i
+              // u মাইক্রো-সেকেন্ড; ভবিষ্যতের (>১ দিন) বা আগের (LWW ভাঙার) মান ঠেকানো হচ্ছে
+              && d.u <= request.time.toMillis() * 1000 + 86400000000
+              && (resource == null || d.u > resource.data.u);
         }
-        allow get, list: if isSA() || (isStaff(t) && writable(t));
+        // tx ও cn.* আর্থিক রেকর্ড; শিক্ষক (isStaff কিন্তু isMoney নয়) এগুলো পড়তে পারবে না
+        function isMoneyRec(d) { return d.c == 'tx' || d.c.matches('^cn\\..*'); }
+        allow get, list: if isSA() || (writable(t) && (isMoney(t) || (isStaff(t) && !isMoneyRec(resource.data))));
         allow create, update: if validRec() && (isSA() || (writable(t) && (
             isMoney(t) || (isStaff(t) && request.resource.data.c in ['notices', 'routine', 'exams']))));
         allow delete: if isSA() || (writable(t) && isMoney(t));
@@ -135,9 +142,10 @@ service cloud.firestore {
 
       // ----- শিক্ষার্থী পোর্টাল (আলাদা, নিরাপদ কপি) -----
       match /pub/{p} {
+        // p_<sid>-তে ফি/আর্থিক তথ্য থাকে, তাই শুধু হিসাবরক্ষক/অ্যাডমিন বা নিজের রেকর্ড; শিক্ষক এটা পড়তে পারবে না
         allow get: if isSA() || (isMember(t) && writable(t) && (
-            roleOf(t) != 'student'
-            || p == 'notices' || p == 'cfg'
+            p == 'notices' || p == 'cfg'
+            || isMoney(t)
             || p == ('p_' + get(mpath(t)).data.sid)));
         allow list: if isSA() || (isMoney(t) && writable(t));
         allow write: if isSA() || (writable(t) && isMoney(t));
@@ -148,7 +156,9 @@ service cloud.firestore {
     match /payments/{id} {
       allow create: if signedIn() && isTAdmin(request.resource.data.t) && validPay(id);
       allow get, list: if isSA() || (signedIn() && isTAdmin(resource.data.t));
-      allow update, delete: if isSA();
+      // 'pending' অবস্থায় থাকলেই শুধু অনুমোদন/বাতিল করা যাবে — একই অনুরোধ দুইবার প্রসেস করে মেয়াদ দুইবার বাড়ানো ঠেকাতে
+      allow update: if isSA() && resource.data.st == 'pending';
+      allow delete: if isSA();
     }
 
     // ---------- প্যাকেজ ও প্ল্যাটফর্ম সেটিং ----------

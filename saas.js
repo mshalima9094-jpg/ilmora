@@ -97,7 +97,7 @@ let MEM = null;     // সদস্য তালিকা (অ্যাডমি
 let PORTAL = null;  // শিক্ষার্থী পোর্টালের ফলাফল
 let SESSPW = '';    // শুধু মেমরিতে (পেজ রিলোডে মুছে যায়)
 const kFor = () => !TN ? tKey('') : (CTX && CTX.role === 'student' && !CTX.sa) ? tKey(TN) + ':stu:' + CTX.uid : tKey(TN);
-const ctxSave = () => { if (CTX) ls.s(CKEY, JSON.stringify({ CTX, TM })); else ls.r(CKEY) };
+const ctxSave = () => { if (CTX && CTX.demo) return; if (CTX) ls.s(CKEY, JSON.stringify({ CTX, TM })); else ls.r(CKEY) };
 const staff = () => CTX && !CTX.none && (CTX.sa || ['admin', 'accountant', 'teacher'].includes(CTX.role));
 const isExp = () => !!(TM && TM.exp > 0 && now() > TM.exp && !(CTX && CTX.sa));
 const DEFPLANS = [
@@ -254,7 +254,7 @@ async function regComplete(e) {
 
 /* ---------- লগআউট / পাসওয়ার্ড ---------- */
 function logout() {
-  clearTimeout(SY.t); CTX = null; TM = null; MEM = null; PORTAL = null; SESSPW = ''; ctxSave();
+  demoClean(); clearTimeout(SY.t); CTX = null; TM = null; MEM = null; PORTAL = null; SESSPW = ''; ctxSave();
   CC = { key: CC.key, pid: CC.pid }; ccSave();
   TN = ''; SAF = 0; SE = ''; K = tKey(''); S = JSON.parse(SDEF); syReset();
   document.body.classList.remove('nav'); render();
@@ -361,7 +361,7 @@ function scan(force) {
   return ch;
 }
 function onSave() {
-  if (!CTX || !TN || CTX.none || CTX.role === 'student') return;
+  if (!CTX || !TN || CTX.none || CTX.demo || CTX.role === 'student') return;
   scan(); ls.s(syK('pn'), JSON.stringify(SY.pn)); SY.pubDirty = 1;
   clearTimeout(SY.t); SY.t = setTimeout(() => sync('push'), 4000); netUI();
 }
@@ -512,6 +512,7 @@ setInterval(() => {
 document.addEventListener('visibilitychange', () => { if (!document.hidden && CTX && TN && !CTX.none && navigator.onLine) sync('poll') });
 function netUI0() {
   const n = $('#net'); if (!n) return;
+  if (CTX && CTX.demo) { n.textContent = '🧪 ডেমো'; return }
   const p = Object.keys(SY.pn).length;
   n.textContent = (navigator.onLine ? '🟢' : '⚪') + (CTX && TN && !CTX.none ? (SY.busy ? ' ⟳' : SY.err ? ' ⚠' : p || SY.hold ? ' ☁⏳' + (p ? bn(p) : '') : ' ☁✓') : '');
 }
@@ -529,6 +530,7 @@ const holdNo = () => { for (const k of (SY.hold || [])) delete SY.sh[k]; SY.hold
 const canAdm = () => CTX && (CTX.sa || CTX.role === 'admin');
 async function memLoad(tid) {
   tid = tid || TN; if (!tid) return [];
+  if (CTX && CTX.demo) return MEM || [];
   const l = (await listDocs('tenants/' + tid + '/members')).map(x => Object.assign(x, { uid: x._id }));
   if (tid === TN) MEM = l; return l;
 }
@@ -802,6 +804,7 @@ function subCard() {
 /* ---------- ক্লাউড কার্ড, গেট স্ক্রিন, ব্যানার ---------- */
 function cloudUI() {
   if (!CTX || CTX.none) return '';
+  if (CTX.demo) return demoCard();
   const p = Object.keys(SY.pn).length, stu = CTX.role === 'student' && !CTX.sa;
   return subCard() + `<div class="card"><b>☁ ক্লাউড সিঙ্ক ও অ্যাকাউন্ট</b><p class="em" style="text-align:left">ডেটা আপনার মাদরাসার আলাদা Firebase অংশে সংরক্ষিত হয়; ইন্টারনেট না থাকলে এই ডিভাইসে জমা থাকে ও পরে নিজে থেকে সিঙ্ক হয়। 🟢 অনলাইন · ⚪ অফলাইন · ☁✓ সিঙ্ক সম্পূর্ণ · ☁⏳ আপলোড বাকি।</p>
   <div class="row"><span>ব্যবহারকারী</span><b>${esc(CTX.name || CTX.em || '')} · ${esc(CTX.sa ? 'সুপার এডমিন' : RC[CTX.role] || '')}</b></div>
@@ -897,6 +900,7 @@ W.loginUI = function () {
   $('#main').innerHTML = `<div class="card" style="max-width:420px;margin:24px auto"><h3 style="margin:0 0 4px">ILMORA</h3><small style="color:var(--m)">মাদরাসা ম্যানেজমেন্ট সিস্টেম</small>
   <form onsubmit="return login(event)" style="margin-top:10px">${inp('Gmail ঠিকানা', 'em', 'required type="email" inputmode="email" autocomplete="username"')}<label>পাসওয়ার্ড<input type="password" name="pw" required autocomplete="current-password"></label><button class="btn">লগইন</button></form>
   <p style="text-align:center;margin:12px 0 0"><a style="cursor:pointer;color:var(--p)" onclick="FBX.regUI()">🏫 নতুন মাদরাসা নিবন্ধন</a></p>
+  <div style="margin-top:14px;padding-top:12px;border-top:1px dashed var(--b)"><button type="button" class="btn o" style="width:100%" onclick="demoStart()">👁 ডেমো দেখুন</button><small style="display:block;text-align:center;color:var(--m);margin-top:6px">রেজিস্ট্রেশন বা পেমেন্ট ছাড়াই অ্যাপের সব সুবিধা নিজে চালিয়ে দেখুন (নমুনা তথ্যসহ)</small></div>
   <p style="text-align:center;margin:8px 0 0"><a style="cursor:pointer;color:var(--p)" onclick="FBX.forgot()">পাসওয়ার্ড ভুলে গেছেন?</a></p></div>`;
 };
 W.lockHelp = () => mdl('লগইন করতে পারছেন না?', '<p class="em" style="text-align:left"><b>পাসওয়ার্ড ভুলে গেলে:</b> লগইন পাতায় "পাসওয়ার্ড ভুলে গেছেন?" চাপুন; আপনার Gmail-এ রিসেট লিংক যাবে।<br><b>ইউজার/শিক্ষক/শিক্ষার্থী:</b> অ্যাডমিনও ইউজার পাতা থেকে রিসেট লিংক পাঠাতে পারেন।<br>ইন্টারনেট না থাকলে আগে একবার অনলাইনে লগইন করা ডিভাইসে অফলাইন লগইন চলে।</p>');
@@ -912,6 +916,7 @@ const meF = () => {
   const r = RC[CTX.role]; return r ? { id: CTX.uid, role: r, name: CTX.name, sid: CTX.sid || '', st: 'সক্রিয়' } : null;
 };
 function boot() {
+  demoClean();
   const o = jp(ls.g(CKEY), null);
   if (o && o.CTX) { CTX = o.CTX; TM = o.TM || null } else { CTX = null; CC = { key: CC.key, pid: CC.pid }; ccSave() }
   if (!ls.g(OFFL) && CTX && !CC.rt && !CTX.none) { /* অফলাইন যাচাই তথ্য নেই; অনলাইনে আবার লগইন লাগবে */ }
@@ -935,5 +940,67 @@ W.FBX = {
   holdOk, holdNo, confKeep: conflictsKeep, confClear: () => { SY.conf = []; syPersist(); render() },
   _t: { pubSync, get MEM() { return MEM }, explode, scan, pull, push, SY, applyRemote, get CTX() { return CTX }, set CTX(v) { CTX = v }, get TM() { return TM }, set TM(v) { TM = v }, applyCtx, makeUser, phKey, hs }
 };
+/* ---------- ডেমো মোড: নিবন্ধন/পেমেন্ট ছাড়াই সুপার প্যাকেজের সব সুবিধা নমুনা তথ্যসহ চালিয়ে দেখা ----------
+   ডেমোর তথ্য শুধু এই ব্রাউজারে (আলাদা কী-তে) থাকে; ক্লাউডে কিছু যায় না, লগআউট/রিলোডে মুছে যায়। */
+function demoClean() {
+  try { const p = tKey('demo'); Object.keys(localStorage).filter(k => k === p || k.indexOf(p + ':') === 0).forEach(k => localStorage.removeItem(k)) } catch (e) { }
+  const b = document.getElementById('demobar'); if (b) b.remove(); document.body.style.paddingBottom = '';
+}
+function demoData() {
+  const D = new Date(), iso = d => d.toISOString().slice(0, 10), ago = n => { const x = new Date(D); x.setDate(x.getDate() - n); return iso(x) };
+  const ym = n => { const x = new Date(D.getFullYear(), D.getMonth() - n, 1); return x.getFullYear() + '-' + String(x.getMonth() + 1).padStart(2, '0') };
+  const cls = ['প্লে', 'নার্সারি', 'প্রথম শ্রেণি', 'দ্বিতীয় শ্রেণি', 'তৃতীয় শ্রেণি', 'হিফজ'];
+  const nm = ['আব্দুল্লাহ', 'মুহাম্মাদ ইউসুফ', 'আহমাদ উল্লাহ', 'ইব্রাহীম খলিল', 'ওমর ফারুক', 'আব্দুর রহমান', 'হামজা আলী', 'সাঈদ হাসান', 'তালহা বিন জুবায়ের', 'যায়েদ বিন হারিস', 'মুসআব উমায়ের', 'বিলাল হোসেন', 'আনাস মাহমুদ', 'খালিদ বিন ওয়ালিদ', 'জাফর সাদিক', 'আব্দুল্লাহ আল মামুন', 'রায়হান কবির', 'সালমান ফারসী', 'মাহদী হাসান', 'নাঈম উদ্দিন', 'ইমরান হোসাইন', 'ফাহিম আহমাদ', 'আয়মান সাদিক', 'তামিম ইকবাল'];
+  const vil = ['উত্তর পাড়া', 'দক্ষিণ পাড়া', 'মধ্য বাজার', 'নতুন বাজার'];
+  const st = nm.map((n, i) => ({ id: 'ds' + (i + 1), name: n, sno: String(i + 1), cls: cls[i % cls.length], roll: String(Math.floor(i / cls.length) + 1), dob: (2012 + (i % 6)) + '-0' + (1 + i % 9) + '-1' + (i % 9), father: 'মো. ' + nm[(i + 7) % nm.length].split(' ')[0] + ' মিয়া', mother: 'মোছা. ফাতেমা বেগম', guard: 'পিতা', gph: '017' + String(10000000 + i * 1234567).slice(0, 8), vil: vil[i % 4], po: 'ডেমো', upz: 'সদর', dist: 'ঢাকা', fee: 300 + (i % 4) * 100 }));
+  const tc = [['মাওলানা আব্দুল করিম', 'মুহতামিম', 'ফুলটাইম', 15000], ['মুফতি হাবিবুল্লাহ', 'নায়েবে মুহতামিম', 'ফুলটাইম', 12000], ['হাফেজ আনোয়ার হোসেন', 'হিফজ উস্তাদ', 'ফুলটাইম', 10000], ['মাওলানা রফিকুল ইসলাম', 'সহকারী শিক্ষক', 'ফুলটাইম', 9000], ['ক্বারী মাহমুদুল হাসান', 'ক্বিরাত শিক্ষক', 'হাফটাইম', 4000]];
+  const te = tc.map((x, i) => ({ id: 'dt' + (i + 1), name: x[0], post: x[1], jt: x[2], sal: x[3], ph: '018' + String(20000000 + i * 777777).slice(0, 8), father: 'মরহুম আব্দুস সালাম', bg: ['A+', 'B+', 'O+', 'AB+', 'A-'][i], cvil: 'ডেমো গ্রাম', cdist: 'ঢাকা', edu: 'দাওরায়ে হাদীস', exp: (3 + i * 2) + ' বছর' }));
+  const fu = (typeof FU !== 'undefined' && FU[0]) || '', ci = (typeof CI === 'function' && CI()[0]) || 'দান', co = (typeof CO === 'function' && CO()[0]) || 'অন্যান্য';
+  let no = 100; const tx = [];
+  st.forEach((s, i) => { [1, 0].forEach(m => { if (m === 0 && i % 5 === 4) return; tx.push({ id: 'dtx' + (++no), kind: 'fee', type: 'in', sid: s.id, ftype: 'salary', month: ym(m), amt: s.fee, date: ago(m * 30 + (i % 20)), no: String(no), cat: 'শিক্ষার্থী ফি', who: s.name, method: i % 2 ? 'বিকাশ' : 'ক্যাশ', fund: fu }) }) });
+  tx.push({ id: 'dtx' + (++no), kind: 'in', type: 'in', cat: ci, amt: 25000, date: ago(6), no: String(no), who: 'আলহাজ্ব আব্দুর রশীদ', note: 'মাসিক অনুদান', method: 'ক্যাশ', fund: fu });
+  tx.push({ id: 'dtx' + (++no), kind: 'in', type: 'in', cat: ci, amt: 8000, date: ago(2), no: String(no), who: 'এলাকাবাসী', note: 'জুমার দান', method: 'ক্যাশ', fund: fu });
+  [['শিক্ষক বেতন', 51000, 8], ['বিদ্যুৎ বিল', 3200, 5], ['খাবার ও রান্না', 14500, 3]].forEach((x, i) => tx.push({ id: 'dtx' + (++no), kind: 'out', type: 'out', cat: i ? co : co, amt: x[1], date: ago(x[2]), no: String(i + 1), who: '', note: x[0], method: 'ক্যাশ', fund: fu }));
+  const subs = [{ n: 'কুরআন', m: 100 }, { n: 'আরবি', m: 100 }, { n: 'বাংলা', m: 100 }, { n: 'গণিত', m: 100 }];
+  const marks = {}; st.filter(x => x.cls === 'প্রথম শ্রেণি').forEach((x, i) => { marks[x.id] = {}; subs.forEach((_, j) => marks[x.id][j] = String(48 + ((i * 17 + j * 11) % 50))) });
+  const exams = [{ id: 'dex1', name: 'প্রথম সাময়িক পরীক্ষা', cls: 'প্রথম শ্রেণি', year: bd(D.getFullYear()), subs, mode: 'g', pass: 33, grades: JSON.parse(JSON.stringify(typeof GG !== 'undefined' ? GG : [])), marks }];
+  const att = {}; for (let n = 1; n <= 6; n++) { const d = ago(n); att[d] = {}; st.forEach((s, i) => { att[d]['s:' + s.id] = { st: (i * 3 + n) % 7 === 0 ? 'অনুপস্থিত' : 'উপস্থিত' } }); te.forEach((t, i) => { att[d]['t:' + t.id] = { st: (i + n) % 9 === 0 ? 'অনুপস্থিত' : 'উপস্থিত' } }) }
+  const prod = [{ id: 'dp1', name: 'বিস্কুট', unit: 'প্যাকেট', buy: 8, sell: 10, stock: 60, min: 10 }, { id: 'dp2', name: 'খাতা', unit: 'পিস', buy: 20, sell: 25, stock: 40, min: 10 }, { id: 'dp3', name: 'কলম', unit: 'পিস', buy: 5, sell: 8, stock: 8, min: 15 }, { id: 'dp4', name: 'পানি (বোতল)', unit: 'পিস', buy: 12, sell: 15, stock: 30, min: 10 }];
+  const sale = (id, d, items) => { const L = items.map(([p, q]) => { const x = prod.find(z => z.id === p); return { pid: x.id, n: x.name, u: x.unit, q, p: x.sell, c: x.buy } }); return { id, date: d, tm: '11:30', pay: 'নগদ', cid: '', total: L.reduce((a, l) => a + l.p * l.q, 0), cost: L.reduce((a, l) => a + l.c * l.q, 0), items: L } };
+  const cn = { prod, sales: [sale('dsl1', ago(2), [['dp1', 6], ['dp4', 3]]), sale('dsl2', ago(1), [['dp2', 4], ['dp3', 5]]), sale('dsl3', ago(0), [['dp1', 10]])], buys: [], exp: [{ id: 'dce1', date: ago(4), cat: 'ভাড়া', amt: 500, note: 'দোকান ভাড়া' }], cust: [], led: [], cash: [], ret: [], open: 2000 };
+  return {
+    inst: 'দারুল ইলম মাদরাসা (ডেমো)', students: st, teachers: te, tx, exams, att, cn, hifz: [], leaves: [], attCfg: {}, smsq: [], tatt: {}, users: [],
+    info: { addr: 'ডেমো রোড, সদর, ঢাকা', ph: '01700000000', year: bd(D.getFullYear()), est: '২০১০', head: 'মাওলানা আব্দুল করিম', inst: 'দারুল ইলম মাদরাসা (ডেমো)' },
+    notices: [{ id: 'dn1', t: 'বার্ষিক পরীক্ষার সময়সূচি', b: 'আগামী মাসের ১০ তারিখ থেকে বার্ষিক পরীক্ষা শুরু হবে। সবাই প্রস্তুতি নিন।', to: 'সবাই', date: ago(3) }, { id: 'dn2', t: 'অভিভাবক সভা', b: 'শুক্রবার জুমার পর অভিভাবক সভা অনুষ্ঠিত হবে।', to: 'সবাই', date: ago(1) }],
+    routine: [['প্রথম শ্রেণি', 'শনিবার', '৮:০০-৯:০০', 'কুরআন', te[2].name], ['প্রথম শ্রেণি', 'শনিবার', '৯:০০-১০:০০', 'আরবি', te[3].name], ['প্রথম শ্রেণি', 'রবিবার', '৮:০০-৯:০০', 'বাংলা', te[3].name], ['প্রথম শ্রেণি', 'রবিবার', '৯:০০-১০:০০', 'গণিত', te[1].name]].map((r, i) => ({ id: 'dr' + i, cls: r[0], day: r[1], time: r[2], sub: r[3], tc: r[4] }))
+  };
+}
+function demoCard() {
+  return `<div class="card"><b>🧪 ডেমো মোড</b><p class="em" style="text-align:left">আপনি এখন ডেমো দেখছেন: <b>সুপার প্যাকেজের সব সুবিধা</b> খোলা আছে এবং নমুনা তথ্য দেওয়া আছে। নিজে তথ্য যোগ, মুছুন, পিডিএফ/প্রিন্ট সবই চালিয়ে দেখতে পারেন। এই তথ্য ক্লাউডে যায় না এবং বের হলে বা পাতা রিলোড করলে মুছে যায়।</p>
+  <p class="em" style="text-align:left">ক্লাউড সিঙ্ক, সাবস্ক্রিপশন পেমেন্ট, ইউজার তৈরি ও পাসওয়ার্ড বদল ডেমোতে বন্ধ; নিবন্ধন করলে চালু হবে।</p>
+  <div class="f2" style="margin-top:10px"><button class="btn" onclick="demoToReg()">🏫 নিবন্ধন করুন</button><button class="btn o" onclick="logout()">ডেমো থেকে বের হোন</button></div></div>`;
+}
+function demoBar() {
+  let b = document.getElementById('demobar');
+  if (!b) { b = document.createElement('div'); b.id = 'demobar'; b.style.cssText = 'position:fixed;left:10px;right:10px;z-index:35;background:#7c3aed;color:#fff;padding:7px 10px;border-radius:12px;display:flex;gap:8px;align-items:center;justify-content:space-between;font-size:12.5px;box-shadow:0 2px 10px rgba(0,0,0,.25)'; document.body.appendChild(b) }
+  const bn_ = document.getElementById('bnav'), on = bn_ && getComputedStyle(bn_).display !== 'none'; b.style.bottom = on ? 'calc(var(--bnh,64px) + 20px + env(safe-area-inset-bottom,0px))' : '10px';
+  b.innerHTML = '<span>🧪 ডেমো মোড — সব সুবিধা খোলা; তথ্য সংরক্ষিত হয় না</span><span style="display:flex;gap:6px;flex-shrink:0"><button onclick="demoToReg()" style="border:0;border-radius:6px;padding:6px 10px;background:#fff;color:#7c3aed;font-weight:700">নিবন্ধন</button><button onclick="logout()" style="border:1px solid #fff;border-radius:6px;padding:6px 10px;background:transparent;color:#fff">বের হোন</button></span>';
+  document.body.style.paddingBottom = '64px';
+}
+function demoStart() {
+  demoClean();
+  CTX = { uid: 'demo', em: 'demo@ilmora.app', name: 'ডেমো অ্যাডমিন', role: 'admin', tid: 'demo', demo: 1, mc: false };
+  TM = { id: 'demo', name: 'দারুল ইলম মাদরাসা (ডেমো)', st: 'active', plan: 'super', exp: 0, own: 'demo' };
+  PLANS = null; MEM = [{ uid: 'demo', _id: 'demo', name: 'ডেমো অ্যাডমিন', role: 'admin', st: 'active', em: 'demo@ilmora.app' }, { uid: 'demo2', _id: 'demo2', name: 'হিসাবরক্ষক (নমুনা)', role: 'accountant', st: 'active', em: 'accountant@example.com' }, { uid: 'demo3', _id: 'demo3', name: 'শিক্ষক (নমুনা)', role: 'teacher', st: 'active', em: 'teacher@example.com' }];
+  CC = { key: CC.key, pid: CC.pid }; SESSPW = '';
+  TN = 'demo'; SAF = 0; SE = ''; K = tKey('demo'); syReset();
+  S = Object.assign(JSON.parse(SDEF), demoData()); ls.s(K, JSON.stringify(S));
+  page = 'dash'; try { history.replaceState(history.state, '', '#dash') } catch (e) { }
+  try { rcls = 'প্রথম শ্রেণি' } catch (e) { } render(); demoBar(); setTimeout(demoBar, 400);
+}
+function demoToReg() { logout(); setTimeout(() => FBX.regUI(), 50) }
+W.demoStart = demoStart; W.demoToReg = demoToReg;
+['memAdd', 'memEdit', 'memSave', 'memReset', 'memToggle', 'memDel', 'cpw', 'payReq', 'resync', 'wipe', 'cfPut'].forEach(k => { const o = W.FBX[k]; if (typeof o !== 'function') return; W.FBX[k] = function (...a) { if (CTX && CTX.demo) { const e = a[0]; if (e && e.preventDefault) e.preventDefault(); toast('ডেমোতে এটি বন্ধ — নিবন্ধন করলে চালু হবে'); return false } return o.apply(this, a) } });
+
 boot();
 })();
