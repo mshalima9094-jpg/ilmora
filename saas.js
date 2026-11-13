@@ -14,6 +14,7 @@ const RC = { admin: 'অ্যাডমিন', accountant: 'হিসাবর�
 const RCI = { 'অ্যাডমিন': 'admin', 'হিসাবরক্ষক': 'accountant', 'শিক্ষক': 'teacher', 'শিক্ষার্থী': 'student' };
 const RECC = ['students', 'teachers', 'tx', 'notices', 'exams', 'hifz', 'leaves', 'smsq', 'routine', 'examRt'];
 const CNK = ['prod', 'sales', 'buys', 'exp', 'cust', 'led', 'cash', 'ret'];
+const MONEYC = ['tx'].concat(CNK.map(k => 'cn.' + k));   // আর্থিক রেকর্ড: firestore.rules-এর isMoney(t) সীমার সাথে মিলিয়ে রাখা
 const MAPK = ['att', 'tatt', 'tattT'];
 const LOCALK = ['fs'];                          // ডিভাইসভিত্তিক সেটিং: সিঙ্ক হয় না
 const UNS = ['notices', 'leaves', 'smsq'];      // নতুনটি আগে দেখানো হয় (unshift)
@@ -352,7 +353,9 @@ function scan(force) {
   for (const k of Object.keys(pn)) if (!cur.has(k) && !pn[k].d && !sh[k]) { delete pn[k]; ch++ }
   if (dels.length) {
     const tot = Object.keys(sh).length;
-    if (!force && dels.length >= 10 && dels.length >= tot * 0.5) SY.hold = dels;    // একসাথে অনেক রেকর্ড মুছতে চাইলে আটকে নিশ্চিতকরণ চাই
+    const wiped = tot > 1 && (cur.size <= 1 || dels.length >= tot * 0.9);    // লোডের পর S প্রায় খালি/অস্বাভাবিক কম অথচ আগে অনেক রেকর্ড ছিল — করাপশন/রেসের লক্ষণ; tombstone পুশ করা হবে না, force দিয়েও না
+    if (wiped) SY.hold = dels;
+    else if (!force && dels.length >= 10 && dels.length >= tot * 0.5) SY.hold = dels;    // একসাথে অনেক রেকর্ড মুছতে চাইলে আটকে নিশ্চিতকরণ চাই
     else { SY.hold = null; for (const k of dels) { const s0 = sh[k]; pn[k] = { u: SU(), d: 1, c: kc(k), i: ki(k), o: s0.o, h: 'del' }; ch++ } }
   } else SY.hold = null;
   return ch;
@@ -385,7 +388,8 @@ function finishApply(touched) {
     const host = c.startsWith('cn.') ? (S.cn || {}) : S, name = c.startsWith('cn.') ? c.slice(3) : c, a = host[name];
     if (Array.isArray(a) && a.length > 1) { const ox = x => { const e = SY.sh[c + '~' + x.id]; return e && e.o != null ? e.o : 1e18 }; a.sort((x, y) => ox(x) - ox(y)) }
   }
-  ls.s(K, JSON.stringify(S)); syPersist(); SY.pubDirty = 1; uiRefresh();
+  if (!ls.s(K, JSON.stringify(S))) { toast('সংরক্ষণ ব্যর্থ (স্টোরেজ পূর্ণ?) — সিঙ্ক আটকে রাখা হলো', 1); return }
+  syPersist(); SY.pubDirty = 1; uiRefresh();
 }
 function uiRefresh() {
   const a = document.activeElement, typing = a && /INPUT|TEXTAREA|SELECT/.test(a.tagName);
@@ -394,8 +398,11 @@ function uiRefresh() {
 }
 async function pull(wide) {
   let cur = wide ? Math.max(0, SY.pt - DAY) : SY.pt, ch = 0; const touched = new Set();
+  const excl = adminLike() ? null : MONEYC;   // শিক্ষকের কোয়েরি থেকেই tx/cn.* বাদ, নইলে রুলস পুরো পেজ কোয়েরি বাতিল করে দেবে
   for (let pg = 0; pg < 400; pg++) {
-    const rs = await runQuery('tenants/' + TN, { from: [{ collectionId: 'records' }], where: { fieldFilter: { field: { fieldPath: 'u' }, op: 'GREATER_THAN', value: { integerValue: String(cur) } } }, orderBy: [{ field: { fieldPath: 'u' }, direction: 'ASCENDING' }], limit: 200 });
+    const uf = { fieldFilter: { field: { fieldPath: 'u' }, op: 'GREATER_THAN', value: { integerValue: String(cur) } } };
+    const where = excl ? { compositeFilter: { op: 'AND', filters: [uf, { fieldFilter: { field: { fieldPath: 'c' }, op: 'NOT_IN', value: { arrayValue: { values: excl.map(c => ({ stringValue: c })) } } } }] } } : uf;
+    const rs = await runQuery('tenants/' + TN, { from: [{ collectionId: 'records' }], where, orderBy: [{ field: { fieldPath: 'u' }, direction: 'ASCENDING' }], limit: 200 });
     const rt = rs.find(x => x.readTime); if (rt) { const sk = Date.parse(rt.readTime) - now(); if (Math.abs(sk) < 7 * 864e5) SY.skew = sk }
     const docs = rs.filter(x => x.document).map(x => dd(x.document));
     for (const d of docs) { cur = Math.max(cur, d.u || 0); if (applyRemote(d, touched)) ch++ }
@@ -457,7 +464,8 @@ async function stuPull() {
   const [n, c, p] = await Promise.all([getDoc(b + 'notices'), getDoc(b + 'cfg'), CTX.sid && safeId(CTX.sid) ? getDoc(b + 'p_' + CTX.sid) : null]);
   const cj = c ? safeParse(c.j) || {} : {}, pj = p ? safeParse(p.j) : null, nj = n ? safeParse(n.j) : [];
   S = Object.assign(JSON.parse(SDEF), { inst: cj.inst || 'আমার প্রতিষ্ঠান', info: cj.info || {}, theme: cj.theme || '', notices: Array.isArray(nj) ? nj : [], students: pj && pj.s ? [pj.s] : [], tx: pj && Array.isArray(pj.fees) ? pj.fees : [], _portal: pj && Array.isArray(pj.results) ? pj.results : [] });
-  ls.s(K, JSON.stringify(S)); render();
+  if (!ls.s(K, JSON.stringify(S))) toast('সংরক্ষণ ব্যর্থ (স্টোরেজ পূর্ণ?) — তথ্য এই সেশনেই শুধু দেখা যাচ্ছে', 1);
+  render();
 }
 
 /* সিঙ্কের মূল ফাংশন */
@@ -614,7 +622,8 @@ PG.users = () => {
    ====================================================================== */
 const SAD = { T: [], pay: [], ok: 0, err: '' };
 let PLAT = null, PAYS = null;
-const bdPlat = () => Object.assign({ bkash: '01989923281', nagad: '01989923281', rocket: '019899232817' }, Object.fromEntries(Object.entries(REG.payments || {}).filter(e => e[1])), Object.fromEntries(Object.entries(PLAT || {}).filter(e => e[1])));
+const bdPlat = () => Object.assign({ bkash: '', nagad: '', rocket: '' }, Object.fromEntries(Object.entries(PLAT || {}).filter(e => e[1])));
+const pnum = n => n ? esc(n) : '<i class="em">সুপার এডমিন এখনো সেট করেননি</i>';   // সোর্সে কোনো ব্যক্তিগত নম্বর হার্ডকোড নেই; শুধু platform/settings থেকে
 const saOk = () => { if (!(CTX && CTX.sa)) { toast('অনুমতি নেই'); return false } return true };
 async function saLoad() {
   if (!CTX || !CTX.sa) return;
@@ -698,14 +707,22 @@ async function saReset(id) {
 }
 async function payOk(id, yes) {
   if (!saOk()) return; const p = SAD.pay.find(x => x.id === id), t = p && SAD.T.find(x => x.id === p.t); if (!p) return;
+  if (p.st && p.st !== 'pending') return toast('এই অনুরোধ আগেই প্রসেস হয়েছে');    // রিট্রাই/ডাবল-ক্লিকে দ্বিতীয়বার মেয়াদ যোগ হওয়া ঠেকানো
   if (yes && !t) return toast('এই মাদরাসাটি আর নেই; অনুমোদন করা যাবে না — বাতিল করুন');
+  if (yes && t) {
+    const pr = planOf(p.plan).price;
+    if (pr && +p.amt !== +pr && !confirm('পাঠানো টাকা (' + p.amt + ') প্যাকেজের বর্তমান মূল্যের (' + pr + ') সাথে মিলছে না। তবুও অনুমোদন করবেন?')) return;
+  }
   try {
+    const writes = [];
     if (yes && t) {
       const o = { plan: p.plan, expiresAt: Math.max(now(), t.expiresAt || 0) + 30 * 864e5 };
       if (t.status === 'pending') o.status = 'active';          // প্রথম পেমেন্ট নিশ্চিত হলে অ্যাপ চালু
-      await setDoc('tenants/' + t.id, o, Object.keys(o));
+      writes.push({ update: { name: docName('tenants/' + t.id), fields: toF(o) }, updateMask: { fieldPaths: Object.keys(o) } });
     }
-    await setDoc('payments/' + id, { st: yes ? 'approved' : 'rejected' }, ['st']); toast(yes ? 'পেমেন্ট অনুমোদিত — ৩০ দিন যুক্ত হয়েছে' : 'প্রত্যাখ্যাত'); await saLoad();
+    writes.push({ update: { name: docName('payments/' + id), fields: toF({ st: yes ? 'approved' : 'rejected' }) }, updateMask: { fieldPaths: ['st'] } });
+    await commit(writes);     // মেয়াদ বাড়ানো ও স্ট্যাটাস বদল — একই ব্যাচে, তাই আংশিক প্রয়োগ/ডাবল-অ্যাড হবে না
+    toast(yes ? 'পেমেন্ট অনুমোদিত — ৩০ দিন যুক্ত হয়েছে' : 'প্রত্যাখ্যাত'); await saLoad();
   } catch (e) { toast(msgOf(e)) }
 }
 const LOCKABLE = () => NAV.filter(n => !['sa', 'dash', 'setup'].includes(n[0]));   // প্যাকেজে চালু/বন্ধ করা যায় এমন পাতা
@@ -770,7 +787,7 @@ async function payReq(e) {
   const trx = String(en(d.trx)).replace(/[^A-Za-z0-9]/g, '').toUpperCase(), mk = { 'বিকাশ': 'b', 'নগদ': 'n', 'রকেট': 'r' }[d.method], from = en(d.from).trim();
   if (!mk || !/^[A-Z0-9]{6,30}$/.test(trx)) return toast('ট্রানজ্যাকশন আইডি সঠিক নয় (৬-৩০ অক্ষর/সংখ্যা)'), false;
   if (!p.price) return toast('প্যাকেজ বেছে নিন'), false;
-  try { await createDoc('payments/tx_' + mk + '_' + trx, { t: TN, plan: p.id, amt: p.price, method: d.method, mk, trx, from, st: 'pending', at: now() }); toast('পেমেন্ট জমা হয়েছে — যাচাইয়ের পর অ্যাপ চালু হবে'); e.target.reset(); PAYS = null; payLoad() }
+  try { await createDoc('payments/tx_' + trx, { t: TN, plan: p.id, amt: p.price, method: d.method, mk, trx, from, st: 'pending', at: now() }); toast('পেমেন্ট জমা হয়েছে — যাচাইয়ের পর অ্যাপ চালু হবে'); e.target.reset(); PAYS = null; payLoad() }
   catch (x) { toast(/ALREADY_EXISTS|PERMISSION|already/i.test(String(x.message)) ? 'এই ট্রানজ্যাকশন আইডি আগেই জমা হয়েছে বা সঠিক নয়' : msgOf(x)) }
   return false;
 }
@@ -779,7 +796,7 @@ function subCard() {
   if (PAYS === null && CTX.role === 'admin' && navigator.onLine) { PAYS = []; payLoad() }
   const p = planOf(TM.plan), pt = bdPlat(), pl = (PLANS || DEFPLANS).filter(x => x.price > 0);
   return `<div class="card"><b>💎 সাবস্ক্রিপশন</b><div class="row"><span>প্যাকেজ</span><b>${esc(p.name)}${p.price ? ' · ' + tk(p.price) + '/মাস' : ''}</b></div><div class="row"><span>মেয়াদ</span><b class="${isExp() ? 'rd' : ''}">${TM.exp ? dt(TM.exp) + (isExp() ? ' (শেষ)' : '') : 'মেয়াদহীন'}</b></div><div class="row"><span>শিক্ষার্থী সীমা</span><b>${p.maxStudents ? bn((S.students || []).length) + '/' + bn(p.maxStudents) : 'সীমাহীন'}</b></div><div class="row"><span>ইউজার সীমা</span><b>${p.maxUsers ? bn((MEM || []).length) + '/' + bn(p.maxUsers) : 'সীমাহীন'}</b></div>
-  ${CTX.role === 'admin' ? `<details style="margin-top:8px"><summary>প্যাকেজ নবায়ন / আপগ্রেড</summary><p class="em" style="text-align:left">বিকাশ ${esc(pt.bkash)} · নগদ ${esc(pt.nagad)} · রকেট ${esc(pt.rocket)} (পার্সোনাল, Send Money)। টাকা পাঠিয়ে নিচের ফর্ম পূরণ করুন।</p><form onsubmit="return FBX.payReq(event)"><label>প্যাকেজ<select name="plan">${pl.map(x => `<option value="${esc(x.id)}">${esc(x.name)} — ${tk(x.price)}</option>`).join('')}</select></label>${sel('মাধ্যম', 'method', ['বিকাশ', 'নগদ', 'রকেট'])}${inp('ট্রানজ্যাকশন আইডি', 'trx', 'required')}${inp('যে নম্বর থেকে পাঠিয়েছেন', 'from', 'required inputmode="tel"')}<button class="btn">অনুরোধ পাঠান</button></form>${(PAYS || []).map(x => `<div class="row"><span>${dt(x.at)} · ${esc(planOf(x.plan).name)}</span><b>${x.st === 'approved' ? 'অনুমোদিত' : x.st === 'rejected' ? 'বাতিল' : 'অপেক্ষমাণ'}</b></div>`).join('')}</details>` : ''}</div>`;
+  ${CTX.role === 'admin' ? `<details style="margin-top:8px"><summary>প্যাকেজ নবায়ন / আপগ্রেড</summary><p class="em" style="text-align:left">বিকাশ ${pnum(pt.bkash)} · নগদ ${pnum(pt.nagad)} · রকেট ${pnum(pt.rocket)} (পার্সোনাল, Send Money)। টাকা পাঠিয়ে নিচের ফর্ম পূরণ করুন।</p><form onsubmit="return FBX.payReq(event)"><label>প্যাকেজ<select name="plan">${pl.map(x => `<option value="${esc(x.id)}">${esc(x.name)} — ${tk(x.price)}</option>`).join('')}</select></label>${sel('মাধ্যম', 'method', ['বিকাশ', 'নগদ', 'রকেট'])}${inp('ট্রানজ্যাকশন আইডি', 'trx', 'required')}${inp('যে নম্বর থেকে পাঠিয়েছেন', 'from', 'required inputmode="tel"')}<button class="btn">অনুরোধ পাঠান</button></form>${(PAYS || []).map(x => `<div class="row"><span>${dt(x.at)} · ${esc(planOf(x.plan).name)}</span><b>${x.st === 'approved' ? 'অনুমোদিত' : x.st === 'rejected' ? 'বাতিল' : 'অপেক্ষমাণ'}</b></div>`).join('')}</details>` : ''}</div>`;
 }
 
 /* ---------- ক্লাউড কার্ড, গেট স্ক্রিন, ব্যানার ---------- */
@@ -811,7 +828,7 @@ function payGate(kind) {
   return `<div style="max-width:560px;margin:16px auto">
   <div class="card"><h3 style="margin:0 0 6px">${title}</h3><p class="em" style="text-align:left"><b>${esc(TM.name)}</b> চালু করতে একটি প্যাকেজ বেছে মাসিক পেমেন্ট করুন। পেমেন্ট যাচাই হলেই অ্যাপ চালু হবে।</p>${pendP ? '<p class="rd" style="text-align:left"><b>⏳ আপনার পেমেন্ট যাচাইয়ের অপেক্ষায় আছে।</b></p>' : ''}</div>
   ${pl.map(p => `<div class="card"><div class="row"><b style="font-size:18px">${esc(p.name)}</b><b style="font-size:18px">${tk(p.price)}/মাস</b></div>${p.note ? `<small style="color:var(--m)">${esc(p.note)}</small>` : ''}<div style="margin-top:6px">${(p.perks || []).map(x => `<div>✔ ${esc(x)}</div>`).join('')}</div></div>`).join('')}
-  <div class="card"><b>পেমেন্ট নম্বর (Send Money — পার্সোনাল)</b><div class="row"><span>বিকাশ</span><b style="user-select:all">${esc(pt.bkash)}</b></div><div class="row"><span>নগদ</span><b style="user-select:all">${esc(pt.nagad)}</b></div><div class="row"><span>রকেট</span><b style="user-select:all">${esc(pt.rocket)}</b></div></div>
+  <div class="card"><b>পেমেন্ট নম্বর (Send Money — পার্সোনাল)</b><div class="row"><span>বিকাশ</span><b style="user-select:all">${pnum(pt.bkash)}</b></div><div class="row"><span>নগদ</span><b style="user-select:all">${pnum(pt.nagad)}</b></div><div class="row"><span>রকেট</span><b style="user-select:all">${pnum(pt.rocket)}</b></div></div>
   <div class="card"><b>টাকা পাঠানোর পর তথ্য দিন</b><form onsubmit="return FBX.payReq(event)"><label>প্যাকেজ<select name="plan">${pl.map(x => `<option value="${esc(x.id)}">${esc(x.name)} — ${tk(x.price)}</option>`).join('')}</select></label>${sel('মাধ্যম', 'method', ['বিকাশ', 'নগদ', 'রকেট'])}${inp('ট্রানজ্যাকশন আইডি (TrxID)', 'trx', 'required')}${inp('যে নম্বর থেকে পাঠিয়েছেন', 'from', 'required inputmode="tel"')}<button class="btn">পেমেন্ট জমা দিন</button></form></div>
   ${P.length ? `<div class="card"><b>পেমেন্টের অবস্থা</b>${P.map(x => `<div class="row"><span>${dt(x.at)} · ${esc(planOf(x.plan).name)} · ${esc(x.method)}</span><b class="${x.st === 'rejected' ? 'rd' : ''}">${x.st === 'approved' ? 'অনুমোদিত' : x.st === 'rejected' ? 'বাতিল' : 'অপেক্ষমাণ'}</b></div>`).join('')}</div>` : ''}
   <div class="card"><div class="f2"><button class="btn" onclick="FBX.connect().then(()=>render())">⟳ অনুমোদন হয়েছে কি দেখুন</button><button class="btn o" onclick="abFile()">↓ JSON ব্যাকআপ</button></div>${out}</div></div>`;
