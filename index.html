@@ -258,7 +258,35 @@ body.pa #pa{color:#000;padding:4mm}body.pa #pa .qrg{grid-template-columns:repeat
 body.xcap .erp{zoom:1!important}body.pa #pa.erpp{padding:0}body.pa #pa.erpp .erp{zoom:1!important;box-shadow:none;margin:0}
 .erSc{overflow-x:auto;max-height:60vh;border:1px solid var(--b);border-radius:12px}.edt{border-collapse:collapse;min-width:620px;width:100%}.edt th{background:var(--bg);padding:6px}.edt td{padding:3px;border-top:1px solid var(--b);text-align:center}.edt input{padding:6px;text-align:center;min-width:56px;border-radius:6px}
 #atk{position:fixed;inset:0;z-index:99;background:#0b1220;color:#fff;overflow:auto;padding:12px;padding-top:max(12px,env(safe-area-inset-top))}.atkh{display:flex;gap:8px;align-items:center;justify-content:space-between;margin-bottom:10px}.atkh select{width:auto;flex:1}#atkv{width:100%;max-height:45vh;object-fit:cover;border-radius:12px;background:#000}.atkr{margin:12px 0;padding:18px;border-radius:14px;text-align:center;font-size:20px;background:#1f2937}.atkr.ok{background:#166534}.atkr.er{background:#991b1b}.atkr.dp{background:#92400e}.atkn{font-size:30px;font-weight:800}.atkm{font-size:24px;margin-top:6px}#atkl{font-size:14px;opacity:.8;line-height:1.8}
-</style><link rel="stylesheet" href="ui.css"></head><body>
+</style><link rel="stylesheet" href="ui.css"><style id="v14css">
+/* সম্মিলিত রেজাল্ট হেডার: কলামে সাজানো, লাইন ভাঙবে না, তাই কোনো লেখা অন্যটার উপর উঠবে না */
+.xh .mid{display:flex;flex-direction:column;align-items:center;gap:4px;min-width:0}
+.xh .mid>*{margin:0!important;max-width:100%}
+.xh h3{white-space:nowrap;line-height:1.35}
+.xh .ad{line-height:1.45;white-space:normal;max-width:660px}
+.xh .ex{white-space:nowrap;line-height:1.5}
+.xh .mt{white-space:nowrap}.xh .mt span{white-space:nowrap;line-height:1.5}
+/* পরীক্ষার রুটিন: প্রতিটি ঘরের লেখা অনুভূমিক ও উল্লম্বভাবে ঠিক মাঝখানে */
+.erp table th,.erp table td{text-align:center!important;vertical-align:middle!important;line-height:1.3;padding-left:3px!important;padding-right:3px!important}
+.erp table th{border-top:1px solid #000!important}
+/* সকল শ্রেণির ক্লাস রুটিন (A4 ল্যান্ডস্কেপ) */
+.crp{width:297mm;min-height:208mm;box-sizing:border-box;padding:9mm 10mm 10mm;display:flex;flex-direction:column;background:#fff;color:#111;border-top:10px solid #14612f;border-bottom:10px solid #14612f;margin:0 auto 18px;box-shadow:0 2px 14px rgba(0,0,0,.18);zoom:var(--k,1);flex:none}
+.crp h2{text-align:center;font-size:25px;font-weight:800;color:#111;margin:0 0 12px;line-height:1.4}
+.crp table{table-layout:fixed;width:100%;flex:1 1 auto;border-collapse:collapse;border:1.5px solid #000;font-size:15px;font-weight:600}
+.crp table th,.crp table td{border:1px solid #000!important;padding:6px 3px!important;text-align:center!important;vertical-align:middle!important;line-height:1.35;color:#111;background:#fff;word-break:break-word}
+.crp table th{background:#14612f;color:#fff;font-weight:700;font-size:14px}
+.crp table th.tm span{display:block;white-space:nowrap;line-height:1.45}
+.crp table td.cn{font-weight:800;background:#eef6f1}
+body.xcap .crp{zoom:1!important}
+.edt th input{display:block;width:100%;margin:0 0 3px}.edt th a{display:block;text-align:center}
+.edt td:first-child input,.edt th:first-child{min-width:78px}
+.crh{font-size:12px;color:var(--m);margin:6px 0 0}
+/* ফাইল সেভ শিট */
+#dlsheet{position:fixed;inset:0;z-index:100000;background:rgba(0,0,0,.45);display:flex;align-items:flex-end;justify-content:center}
+#dlsheet .dlb{background:var(--c);color:var(--t);width:100%;max-width:480px;border-radius:20px 20px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));display:flex;flex-direction:column;gap:10px;box-shadow:0 -6px 30px rgba(0,0,0,.25)}
+#dlsheet .dlb b{font-size:18px}#dlsheet .dlb small{color:var(--m);word-break:break-all}#dlsheet .btn{width:100%}#dlsheet .btn.s{align-self:center;width:auto}
+</style>
+</head><body>
 <div class="top"><button onclick="document.body.classList.toggle('nav')">☰</button><b id="ttl"></b><span id="net" style="font-size:14px"></span></div>
 <div class="shade" onclick="document.body.classList.remove('nav')"></div>
 <div class="side" id="side"></div><main id="main"></main><div id="toast"></div>
@@ -441,7 +469,7 @@ const go2=(t,c)=>{pre={open:1,cat:c||''};iet=t;nav('ie')};
 const stp=(l,v,id,items,lab,rt,go)=>`<div class="st"><small>${l}</small><b>${v}</b><button class="pr${rt?' rt':''}" aria-label="${lab}" onclick="${go||`pmt(event,'${jx(id)}')`}">${rt?`<i class="pl">+</i><span>${lab}</span>`:`<span>${lab}</span><i class="pl">+</i>`}</button><div class="pm" id="${id}" hidden>${items}</div></div>`;
 const nsno=()=>{const m=S.students.map(x=>parseInt(en(x.sno||''))).filter(x=>!isNaN(x));return String((m.length?Math.max(...m):0)+1)};
 /* ---- শিক্ষক হাজিরা: দৈনিক (ইন/আউট) + মাসিক রিপোর্ট ---- */
-let tv='d',tmo=ld().slice(0,7),rv='c',rexam='';
+let tv='d',tmo=ld().slice(0,7),rv='g',rexam='';
 const ttabs=()=>`<div class="xt">${[['d','🗓️ দৈনিক হাজিরা'],['m','📋 মাসিক রিপোর্ট']].map(t=>`<button class="${tv==t[0]?'on':''}" onclick="tv='${jx(t[0])}';render()">${t[1]}</button>`).join('')}</div>`;
 const tmark=(d,id,k,v)=>{atWMut(()=>{const r=atGet(d,'t:'+id),f={in:'i',out:'o',in2:'i2',out2:'o2'}[k];if(v)r[f]=v;else delete r[f]});const e=document.getElementById('ts'+id);if(e&&v&&k=='in'&&!e.value)e.value='উপস্থিত';toast('সংরক্ষিত')};
 const tcnt=(id,m)=>{const o={u:0,a:0,c:0};Object.entries(TA()).forEach(([d,r])=>{if(m&&!d.startsWith(m))return;const v=r[id];if(v=='উপস্থিত')o.u++;else if(v=='অনুপস্থিত')o.a++;else if(v=='ছুটি')o.c++});return o};
@@ -454,7 +482,7 @@ if(m&&ms.includes(m)){const ds=Object.keys(TA()).filter(d=>d.startsWith(m)&&TA()
 return h}
 function trpt(id){const t=S.teachers.find(x=>x.id==id);if(!t)return;mdl('📋 '+esc(t.name)+' — হাজিরা রিপোর্ট',`<div id="trb">${trHtml(id,tmo)}</div>`)}
 function trSel(id,m){const b=$('#trb');if(b)b.innerHTML=trHtml(id,m)}
-const rtTabs=()=>`<div class="xt">${[['c','🏫 ক্লাস রুটিন'],['e','📝 পরীক্ষার রুটিন']].map(t=>`<button class="${rv==t[0]?'on':''}" onclick="rv='${jx(t[0])}';render()">${t[1]}</button>`).join('')}</div>`;
+const rtTabs=()=>`<div class="xt">${[['g','🗓 সকল শ্রেণির ক্লাস রুটিন'],['c','🏫 ক্লাস রুটিন (তালিকা)'],['e','📝 পরীক্ষার রুটিন']].map(t=>`<button class="${rv==t[0]?'on':''}" onclick="rv='${jx(t[0])}';render()">${t[1]}</button>`).join('')}</div>`;
 
 const PG={
 inst(){if(!canW('inst'))return instView();if(instFilled()&&!instEd)return instView()+`<button class="btn" onclick="instEd=1;render()">✎ এডিট করুন</button>`;const v=S.info,I=(l,n,x='')=>inp(l,n,`value="${esc(v[n])}" ${x}`);return `${instFilled()?'<div style="text-align:right;margin-bottom:8px"><button class="btn s o" onclick="instEd=0;render()">✕ বাতিল</button></div>':''}<div class="card"><form onsubmit="return sub(event,'inf')"><div class="fg">${inp('প্রতিষ্ঠানের নাম','inst',`required value="${esc(S.inst)}"`)}${I('আরবি নাম (রেজাল্ট কার্ডের জন্য)','ar','dir="rtl"')}${I('প্রতিষ্ঠান কোড','code')}${I('মুহতামিম / প্রধান শিক্ষক','head')}${I('শিক্ষা বর্ষ','year')}${I('যোগাযোগ নম্বর','ph','inputmode="tel"')}${I('ইমেইল','mail')}${I('ওয়েবসাইট / ফেসবুক','web')}${I('অনুমোদন / লাইসেন্স','lic')}<h4 class="w">প্রতিষ্ঠানের দায়িত্বশীলগণ</h4>${I('প্রতিষ্ঠাতার নাম','fdr')}${I('প্রতিষ্ঠাতার মোবাইল নম্বর','fdrph','inputmode="tel"')}${I('সভাপতির নাম','pre')}${I('সভাপতির মোবাইল নম্বর','preph','inputmode="tel"')}${I('সেক্রেটারির নাম','sec')}${I('সেক্রেটারির মোবাইল নম্বর','secph','inputmode="tel"')}${I('কোষাধ্যক্ষের নাম','tre')}${I('কোষাধ্যক্ষের মোবাইল নম্বর','treph','inputmode="tel"')}<label class="w">ঠিকানা<textarea name="addr" rows="2">${esc(v.addr)}</textarea></label><label class="w">লোগো${v.logo?' <small>(আগেরটি আছে; নতুন দিলে বদলাবে)</small>':''}<input type="file" name="logo" accept="image/*" onchange="imgChk(this,'logo')"></label><label class="w">প্রতিষ্ঠানের ছবি (ড্যাশবোর্ডের ব্যানার)${v.bn?' <small>(আগেরটি আছে; নতুন দিলে বদলাবে)</small>':''}<input type="file" name="bn" accept="image/*" onchange="imgChk(this,'bn')"></label></div><button class="btn">সংরক্ষণ করুন</button></form></div>`},
@@ -462,7 +490,7 @@ tatt(){return ttabs()+(tv=='m'?PG.tattM():PG.tattD())},
 tattD(){const d0=fd||today(),r=TA()[d0]||{},T=TT()[d0]||{},mo=d0.slice(0,7),cnt=id=>Object.entries(TA()).filter(([d,m])=>d.startsWith(mo)&&m[id]=='উপস্থিত').length;return `<div class="card"><label>তারিখ<input type="date" value="${d0}" onchange="fd=this.value;render()"></label>${S.teachers.length?`<button class="btn s o" onclick="S.teachers.forEach(t=>mark('${jx(d0)}',t.id,'উপস্থিত'));render()">সবাই উপস্থিত</button>`:''}${S.teachers.map(t=>{const x=T[t.id]||{};return `<div class="row" style="flex-wrap:wrap;gap:8px"><div style="flex:1;min-width:130px"><b>${esc(t.name)}</b><small>এই মাসে উপস্থিত: ${bn(cnt(t.id))} দিন</small></div><select id="ts${t.id}" style="width:auto" onchange="mark('${jx(d0)}','${jx(t.id)}',this.value)">${['','উপস্থিত','অনুপস্থিত','ছুটি'].map(v=>`<option value="${v}" ${r[t.id]==v?'selected':''}>${v||'— বাছুন —'}</option>`).join('')}</select>${(()=>{const k='t:'+t.id,tb=(f,l)=>`<label>${l}<input type="time" data-box="1" data-def="${esc(atSch(k,({in:'i',out:'o',in2:'i2',out2:'o2'})[f]))}" value="${esc(x[f]||'')}" onchange="tmark('${jx(d0)}','${jx(t.id)}','${f}',this.value)"></label>`;return `<div class="tpair"><div class="tp1">${atFT(k)?'<div class="th1">সকাল</div>':''}<div class="tio">${tb('in','প্রবেশ')}${tb('out','প্রস্থান')}</div></div>${atFT(k)?`<div class="tp1"><div class="th1">বিকাল</div><div class="tio">${tb('in2','প্রবেশ')}${tb('out2','প্রস্থান')}</div></div>`:''}</div>`})()}</div>`}).join('')||'<p class="em">আগে শিক্ষক যোগ করুন</p>'}</div>`},
 tattM(){return `<div class="card"><label>মাস<input type="month" value="${tmo}" onchange="tmo=this.value||tmo;render()"></label><small style="color:var(--m)">শিক্ষকের নামে চাপলে সব মাসের উপস্থিত/অনুপস্থিতের রিপোর্ট দেখা যাবে।</small></div><div class="card"><b>${mlab(tmo)} — মাসিক হাজিরা</b>${S.teachers.map(t=>{const c=tcnt(t.id,tmo);return `<div class="row tp" onclick="trpt('${jx(t.id)}')"><div><b>${esc(t.name)}</b><small>${esc(t.post||'')}</small></div><div class="r" style="text-align:right;font-size:13px"><span class="g">উপস্থিত ${bn(c.u)}</span> · <span class="rd">অনুপস্থিত ${bn(c.a)}</span><br>ছুটি ${bn(c.c)}</div></div>`}).join('')||'<p class="em">আগে শিক্ষক যোগ করুন</p>'}</div>`},
 exams(){return exHub()},
-routine(){return rtTabs()+(rv=='e'?PG.routineE():PG.routineC())},
+routine(){return rtTabs()+(rv=='e'?PG.routineE():rv=='g'?crPage():PG.routineC())},
 routineE(){return erPage()},
 routineC(){const D=['শনিবার','রবিবার','সোমবার','মঙ্গলবার','বুধবার','বৃহস্পতিবার','শুক্রবার'],ix=x=>D.indexOf(x)<0?99:D.indexOf(x),c=rcls||CL()[0],L=S.routine.filter(r=>r.cls==c),days=[...new Set(L.map(r=>r.day))].sort((a,b)=>ix(a)-ix(b));return `<div class="card"><details><summary>＋ রুটিন যোগ করুন</summary><form onsubmit="return window.sub(event,'rt')">${sel('শ্রেণি / জামাত','cls',CL(),c)}<div class="fg">${inp('দিন / তারিখ','day','required list="dy"')}${inp('সময়','time','placeholder="৮:০০-৯:০০"')}${inp('বিষয়','sub','required')}${sel('শিক্ষক','tc',['',...S.teachers.map(t=>t.name)])}</div><datalist id="dy">${D.map(d=>`<option>${d}`).join('')}</datalist><button class="btn">যোগ করুন</button></form></details></div><label>শ্রেণি<select onchange="rcls=this.value;render()">${CL().map(x=>`<option ${x==c?'selected':''}>${esc(x)}</option>`).join('')}</select></label>${days.map(d=>`<div class="card"><b>${esc(d)}</b>${L.filter(r=>r.day==d).sort((a,b)=>a.time.localeCompare(b.time)).map(r=>`<div class="row"><div><b>${esc(r.sub)}</b><small>${esc(r.time)} ${r.tc?'· '+esc(r.tc):''}</small></div><button class="x" onclick="del('routine','${jx(r.id)}',this)">মুছুন</button></div>`).join('')}</div>`).join('')||'<p class="em">কোনো রুটিন নেই</p>'}`},
 dash(){if(ROLE()=='শিক্ষক')return `<div class="hero"><h2>আসসালামু আলাইকুম, মুহতারাম</h2><p>আজকের তারিখ: ${dt(today())}</p></div><div class="grid"><div class="st"><small>মোট শিক্ষার্থী</small><b>${bn(S.students.length)}</b></div><div class="st"><small>মোট শিক্ষক</small><b>${bn(S.teachers.length)}</b></div></div><div class="card"><b>সাম্প্রতিক নোটিশ</b>${S.notices.slice(0,5).map(n=>`<div class="row"><div><b>${esc(n.t)}</b><small>${dt(n.date)}</small></div></div>`).join('')||'<p class="em">কোনো নোটিশ নেই</p>'}</div>`;
@@ -805,7 +833,7 @@ return set+`<div class="card" style="padding:8px"><div class="xsc"><table class=
 /* ---- প্রিন্ট / ছবি ---- */
 const ldS=u=>new Promise((r,j)=>{const s=document.createElement('script');s.src=u;s.onload=r;s.onerror=j;document.head.appendChild(s)});
 async function exImg(q,nm){ltHide();try{return await exImg0(q,nm)}finally{ltShow()}}
-async function exImg0(q,nm){try{const els=[...document.querySelectorAll(q)];if(!els.length)return;toast('ছবি তৈরি হচ্ছে…');document.body.classList.add('xcap');for(let i=0;i<els.length;i++){const c=await h2c(els[i],{scale:3,backgroundColor:'#fff'});const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=nm+(els.length>1?'-'+(i+1):'')+'.png';document.body.appendChild(a);a.click();a.remove();await new Promise(r=>setTimeout(r,350))}}catch(x){toast('ছবি সেভ হয়নি (ইন্টারনেট লাগবে)')}finally{document.body.classList.remove('xcap')}}
+async function exImg0(q,nm){try{const els=[...document.querySelectorAll(q)];if(!els.length)return;toast('ছবি তৈরি হচ্ছে…');document.body.classList.add('xcap');for(let i=0;i<els.length;i++){const c=await h2c(els[i],{scale:3,backgroundColor:'#fff'});if(els.length==1){const bl=await new Promise(r=>c.toBlob(r,'image/png'));if(bl){await repSave(nm+'.png',bl);continue}}const a=document.createElement('a');a.href=c.toDataURL('image/png');a.download=nm+(els.length>1?'-'+(i+1):'')+'.png';document.body.appendChild(a);a.click();a.remove();await new Promise(r=>setTimeout(r,350))}}catch(x){toast('ছবি সেভ হয়নি (ইন্টারনেট লাগবে)')}finally{document.body.classList.remove('xcap')}}
 const fitX=()=>{try{fitAdm()}catch(e){}document.querySelectorAll('.xa').forEach(el=>{const w=el.querySelector('.xpg')?1123:794;el.style.setProperty('--k',Math.min(1,(el.parentElement.clientWidth-6)/w))})};
 
 /* ---- সম্মিলিত রেজাল্ট ---- */
@@ -813,8 +841,8 @@ function exCmb(e){const R=calc(e);if(!R.length)return '<div class="card"><p clas
 const I=S.info,P=exP(e),n=e.subs.length,PP=16,ix=R.map((r,i)=>i).sort((a,b)=>(R[a].has?R[a].pos:9999)-(R[b].has?R[b].pos:9999)),np=Math.max(1,Math.ceil(ix.length/PP)),hs=R.filter(r=>r.has),ps=hs.filter(r=>!r.fail).length,
 sp=Math.min(9,Math.max(4.2,38/n)),k=(100-n*sp)/60,cw=[4*k,4*k,15*k,14*k,...e.subs.map(()=>sp),6*k,5*k,5*k,7*k],fs=n>12?9:n>9?10:n>6?11:12.5,
 sumB=`<div class="xsum"><b>ফলাফল সারসংক্ষেপ</b><br>মোট: ${bn(hs.length)} | পাস: ${bn(ps)} | ফেল: ${bn(hs.length-ps)}<br>${exG(e).map(g=>esc(g.name)+': '+bn(hs.filter(r=>r.g==g.name).length)).join(' | ')}</div>`;
-let o='';for(let p=0;p<np;p++){o+=`<div class="xpg"><div class="xh"><div class="lg">${I.logo?`<img src="${I.logo}">`:''}</div><div class="mid"><h3>${esc(S.inst)}</h3><div class="ad">${esc(I.addr||'')}${I.ph?' | মোবাইল: '+esc(I.ph):''}</div><div class="ex">${esc(e.name)}</div><div class="mt"><span>শিক্ষাবর্ষ: ${esc(e.year||I.year||'')}</span><span>শ্রেণি: ${esc(e.cls)}</span></div></div>${sumB}</div><table class="xrs" style="font-size:${fs}px"><colgroup>${cw.map(w=>`<col style="width:${w}%">`).join('')}</colgroup><tr><th>ক্র.নং</th><th>রোল</th><th>শিক্ষার্থীর নাম</th><th>পিতার নাম</th>${e.subs.map(b=>`<th>${esc(b.n)}</th>`).join('')}<th>মোট</th><th>গড়</th><th>গ্রেড</th><th>মেধাস্থান</th></tr>${ix.slice(p*PP,p*PP+PP).map((i,j)=>{const r=R[i],s=r.s;return `<tr><td>${bn(p*PP+j+1)}</td><td>${xdg(esc(s.roll||''))}</td><td class="l">${esc(s.name)}</td><td class="l">${esc(s.father||'')}</td>${e.subs.map((b,c)=>{const v=exRaw(e,s.id,c);return `<td class="${v!==''&&(+en(v)||0)<b.m*P/100?'f':''}">${v===''?'':XD(+en(v)||0)}</td>`}).join('')}<td><b>${r.has?XD(r.tot):''}</b></td><td class="${r.fail?'f':''}">${r.has?XD(r.p):''}</td><td>${r.has?esc(r.g):''}</td><td>${r.has?xord(r.pos):''}</td></tr>`}).join('')}</table>${p==np-1?`<div class="xnote">* লাল চিহ্নিত নম্বর/গড় = কোনো বিষয়ে রাসিব। রাসিবমুক্ত শিক্ষার্থীরা মেধাস্থানে এগিয়ে।</div>`:''}<div class="xsg"><span>শ্রেণি শিক্ষকের স্বাক্ষর</span><span style="border:0">পৃষ্ঠা : ${bn(p+1)}</span><span>মুহতামিমের স্বাক্ষর</span></div></div>`}
-return `<div class="card"><div class="f2"><button class="btn" onclick="exPrint('l')">⬇ PDF ডাউনলোড</button><button class="btn o" onclick="exImg('#xa .xpg','sommilito-result')">🖼 ছবি সেভ</button></div><small style="color:var(--m)">খোলা ডায়ালগে "Save as PDF" বাছুন। A4 ল্যান্ডস্কেপ, ${bn(np)} পাতা।</small></div><div class="xa" id="xa">${o}</div>`}
+let o='';for(let p=0;p<np;p++){o+=`<div class="xpg"><div class="xh"><div class="lg">${I.logo?`<img src="${I.logo}">`:''}</div><div class="mid"><h3>${esc(S.inst)}</h3><div class="ad">${esc(I.addr||'')}</div><div class="ex">${esc(e.name)}</div><div class="mt"><span>শিক্ষাবর্ষ: ${esc(e.year||I.year||'')}</span><span>শ্রেণি: ${esc(e.cls)}</span></div></div>${sumB}</div><table class="xrs" style="font-size:${fs}px"><colgroup>${cw.map(w=>`<col style="width:${w}%">`).join('')}</colgroup><tr><th>ক্র.নং</th><th>রোল</th><th>শিক্ষার্থীর নাম</th><th>পিতার নাম</th>${e.subs.map(b=>`<th>${esc(b.n)}</th>`).join('')}<th>মোট</th><th>গড়</th><th>গ্রেড</th><th>মেধাস্থান</th></tr>${ix.slice(p*PP,p*PP+PP).map((i,j)=>{const r=R[i],s=r.s;return `<tr><td>${bn(p*PP+j+1)}</td><td>${xdg(esc(s.roll||''))}</td><td class="l">${esc(s.name)}</td><td class="l">${esc(s.father||'')}</td>${e.subs.map((b,c)=>{const v=exRaw(e,s.id,c);return `<td class="${v!==''&&(+en(v)||0)<b.m*P/100?'f':''}">${v===''?'':XD(+en(v)||0)}</td>`}).join('')}<td><b>${r.has?XD(r.tot):''}</b></td><td class="${r.fail?'f':''}">${r.has?XD(r.p):''}</td><td>${r.has?esc(r.g):''}</td><td>${r.has?xord(r.pos):''}</td></tr>`}).join('')}</table>${p==np-1?`<div class="xnote">* লাল চিহ্নিত নম্বর/গড় = কোনো বিষয়ে রাসিব। রাসিবমুক্ত শিক্ষার্থীরা মেধাস্থানে এগিয়ে।</div>`:''}<div class="xsg"><span>শ্রেণি শিক্ষকের স্বাক্ষর</span><span style="border:0">পৃষ্ঠা : ${bn(p+1)}</span><span>মুহতামিমের স্বাক্ষর</span></div></div>`}
+return `<div class="card"><div class="f2"><button class="btn" onclick="exPrint('l')">⬇ PDF ডাউনলোড</button><button class="btn o" onclick="exImg('#xa .xpg','sommilito-result')">🖼 ছবি সেভ</button></div><small style="color:var(--m)">A4 ল্যান্ডস্কেপ, ${bn(np)} পাতা।</small></div><div class="xa" id="xa">${o}</div>`}
 
 /* ---- রেজাল্ট কার্ড ---- */
 const XTH=['ডিফল্ট সবুজ','নীল-সোনালি','মেরুন','টিল','সাদা-কালো'];
@@ -2181,7 +2209,7 @@ const atLate=(k,f)=>{const c=atCfg(),b=atSch(k,f||'i')||(f?'':c.late);return b?a
 const atSchTxt=k=>{const f=atFT(k)?['i','o','i2','o2']:['i','o'],a=f.map(x=>atSch(k,x));return a.some(Boolean)?'নির্ধারিত: '+a.map(x=>x?t12(x):'—').join(' · '):''};
 /* ===== আয়-ব্যয় রিপোর্ট PDF (মাসিক / বাৎসরিক / সর্বমোট) ===== */
 function bd(s){return String(s).replace(/\d/g,d=>'০১২৩৪৫৬৭৮৯'[d])}
-function repPdfCard(){return `<div class="card"><b>📄 আয়-ব্যয় রিপোর্ট (PDF ডাউনলোড)</b><div class="f2" style="margin-top:10px;align-items:end"><label>মাস<input type="month" value="${rpM}" onchange="rpM=this.value||rpM"></label><button class="btn" style="margin-bottom:10px" onclick="repPdf('m')">⬇ মাসিক PDF</button></div><div class="f2" style="align-items:end"><label>বছর<input inputmode="numeric" maxlength="4" value="${rpY}" onchange="rpY=en(this.value).trim()||rpY"></label><button class="btn" style="margin-bottom:10px" onclick="repPdf('y')">⬇ বাৎসরিক PDF</button></div><button class="btn o" onclick="repPdf('a')">⬇ সর্বমোট PDF (শুরু থেকে আজ পর্যন্ত)</button></div>`}
+function repPdfCard(){return `<div class="card"><b>📄 আয়-ব্যয় রিপোর্ট (PDF ডাউনলোড)</b><div class="f2" style="margin-top:10px;align-items:end"><label>মাস<input type="month" value="${rpM}" onchange="rpM=this.value||rpM"></label><button class="btn" style="margin-bottom:10px" onclick="repPdf('m')">⬇ মাসিক PDF</button></div><div class="f2" style="align-items:end"><label>বছর<input inputmode="numeric" maxlength="4" value="${rpY}" onchange="rpY=en(this.value).trim()||rpY"></label><button class="btn" style="margin-bottom:10px" onclick="repPdf('y')">⬇ বাৎসরিক PDF</button></div><button class="btn o" onclick="repPdf('a')">⬇ সর্বমোট PDF (শুরু থেকে আজ পর্যন্ত)</button><div class="f2" style="margin-top:10px"><button class="btn" onclick="repCatPdf()">⬇ খাতভিত্তিক আয়-ব্যয় PDF</button><button class="btn" onclick="repClsPdf()">⬇ শ্রেণিভিত্তিক আয় PDF</button></div><small style="color:var(--m)">এই দুটি PDF-এ নিচের "মাস" ফিল্টারের সময় ধরা হয় (ফাঁকা থাকলে সব সময়)।</small></div>`}
 function mkPdf(J){const E=s=>new TextEncoder().encode(s),P=[],X=[];let L=0;const add=b=>{P.push(b);L+=b.length},obj=(n,h,s)=>{X[n]=L;add(E(n+' 0 obj\n'+h));if(s){add(E('\nstream\n'));add(s);add(E('\nendstream'))}add(E('\nendobj\n'))};const N=J.length;add(E('%PDF-1.4\n'));obj(1,'<< /Type /Catalog /Pages 2 0 R >>');obj(2,'<< /Type /Pages /Kids ['+J.map((_,i)=>(3+i*3)+' 0 R').join(' ')+'] /Count '+N+' >>');J.forEach((j,i)=>{const p=3+i*3,c=p+1,im=p+2,pw=j.pw||595.28,ph=j.ph||841.89,cs=E('q '+pw+' 0 0 '+ph+' 0 0 cm /Im0 Do Q');obj(p,'<< /Type /Page /Parent 2 0 R /MediaBox [0 0 '+pw+' '+ph+'] /Resources << /XObject << /Im0 '+im+' 0 R >> >> /Contents '+c+' 0 R >>');obj(c,'<< /Length '+cs.length+' >>',cs);obj(im,'<< /Type /XObject /Subtype /Image /Width '+j.w+' /Height '+j.h+' /ColorSpace /DeviceRGB /BitsPerComponent 8 /Filter /DCTDecode /Length '+j.d.length+' >>',j.d)});const n=3+N*3,xs=L;let x='xref\n0 '+n+'\n0000000000 65535 f \n';for(let i=1;i<n;i++)x+=String(X[i]).padStart(10,'0')+' 00000 n \n';x+='trailer\n<< /Size '+n+' /Root 1 0 R >>\nstartxref\n'+xs+'\n%%EOF';add(E(x));return new Blob(P,{type:'application/pdf'})}
 /* ===== সব রিপোর্ট: সরাসরি PDF ডাউনলোড (প্রিন্ট ডায়ালগ ছাড়াই) ===== */
 const H2C='https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js';
@@ -2204,15 +2232,28 @@ rm.forEach(n=>n.remove())}finally{for(const k in VO){VO[k]?el.style.setProperty(
 const w=Math.ceil(o.width||el.getBoundingClientRect().width),box=document.createElement('div');box.style.cssText='position:fixed;left:-200000px;top:0;width:'+w+'px;pointer-events:none;contain:layout';box.setAttribute('aria-hidden','true');
 clone.style.position='static';clone.style.margin='0';clone.style.transform='none';clone.style.inset='auto';box.appendChild(clone);document.body.appendChild(box);let url;
 try{if(o.onclone)o.onclone(document,clone);
-const rc=clone.getBoundingClientRect(),W=Math.ceil(o.width||Math.max(clone.scrollWidth,rc.width)),H=Math.ceil(Math.max(clone.scrollHeight,rc.height)),fams=new Set,all=[clone,...clone.querySelectorAll('*')];
+let rc=clone.getBoundingClientRect(),W=Math.ceil(o.width||Math.max(clone.scrollWidth,rc.width)),H=Math.ceil(Math.max(clone.scrollHeight,rc.height)),fams=new Set,all=[clone,...clone.querySelectorAll('*')];
 for(const n of all){(n.style.fontFamily||'').split(',').forEach(f=>fams.add(f.replace(/["']/g,'').trim()));if(n.tagName=='IMG'){const s=n.getAttribute('src');if(s&&!/^data:/.test(s)){const d=await toDU(new URL(s,location.href).href);d?n.setAttribute('src',d):n.removeAttribute('src')}n.removeAttribute('srcset')}
 const bi=n.style.backgroundImage;if(bi&&bi.includes('url('))n.style.backgroundImage=await inlineUrls(bi)}
-const fc=(await fontCSS(fams)).replace(/&/g,'&amp;').replace(/</g,'&lt;'),xml=new XMLSerializer().serializeToString(clone),sc=o.scale||1,CW=Math.max(1,Math.round(W*sc)),CH=Math.max(1,Math.round(H*sc));
+const fc=(await fontCSS(fams)).replace(/&/g,'&amp;').replace(/</g,'&lt;'),xml=new XMLSerializer().serializeToString(clone),sc=o.scale||1;
+let PB=null;if(o.probe){try{PB=await probeLayout(xml,fc,W,o.brkSel||'')}catch(e){console.warn('probe failed',e)}}
+if(PB){W=Math.max(W,PB.w);H=Math.max(H,PB.h)}
+const CW=Math.max(1,Math.round(W*sc)),CH=Math.max(1,Math.round(H*sc));
 if(CW*CH>2.6e8)throw new Error('canvas too large');
 const svg='<svg xmlns="http://www.w3.org/2000/svg" width="'+CW+'" height="'+CH+'" viewBox="0 0 '+W+' '+H+'"><defs><style>'+fc+'</style></defs><foreignObject x="0" y="0" width="'+W+'" height="'+H+'">'+xml+'</foreignObject></svg>';
 url='data:image/svg+xml;base64,'+await _b64(new Blob([svg],{type:'image/svg+xml'})).then(d=>d.split(',')[1]);const im=new Image;await new Promise((r,j)=>{im.onload=r;im.onerror=()=>j(new Error('svg render failed'));im.src=url});
-const c=document.createElement('canvas');c.width=CW;c.height=CH;const x=c.getContext('2d');x.fillStyle=o.backgroundColor||'#fff';x.fillRect(0,0,CW,CH);x.drawImage(im,0,0,CW,CH);return c}
+const c=document.createElement('canvas');c.width=CW;c.height=CH;const x=c.getContext('2d');x.fillStyle=o.backgroundColor||'#fff';x.fillRect(0,0,CW,CH);x.drawImage(im,0,0,CW,CH);c.__pb=PB;c.__k=CW/W;return c}
 finally{box.remove()}}
+
+/* চূড়ান্ত রেন্ডারে (স্টাইলশিট ছাড়া) লেআউট আসলে কত বড় হয় তা আগে মেপে নেয়: ডান/নিচ কাটা পড়ে না, পাতা ভাঙার জায়গা মেলে */
+async function probeLayout(xml,fc,W,sel){const f=document.createElement('iframe');f.setAttribute('aria-hidden','true');f.style.cssText='position:fixed;left:-200000px;top:0;border:0;width:'+W+'px;height:600px;visibility:hidden;pointer-events:none';
+f.srcdoc='<!DOCTYPE html><html><head><meta charset="utf-8"><style>'+fc.replace(/&lt;/g,'<').replace(/&amp;/g,'&')+'</style></head><body style="margin:0">'+xml+'</body></html>';document.body.appendChild(f);
+try{await new Promise((r,j)=>{f.onload=r;setTimeout(()=>j(new Error('probe timeout')),8000)});const d=f.contentDocument;
+try{if(d.fonts&&d.fonts.ready)await Promise.race([d.fonts.ready,new Promise(r=>setTimeout(r,2500))])}catch(e){}
+await new Promise(r=>setTimeout(r,80));const root=d.body.firstElementChild;if(!root)throw new Error('no root');const rr=root.getBoundingClientRect();let w=Math.ceil(rr.width),h=Math.ceil(rr.height);
+[root,...root.querySelectorAll('*')].forEach(n=>{const q=n.getBoundingClientRect();if(!q.width&&!q.height)return;if(q.right-rr.left>w)w=Math.ceil(q.right-rr.left);if(q.bottom-rr.top>h)h=Math.ceil(q.bottom-rr.top)});
+const brk=[];if(sel)[...root.children,...root.querySelectorAll(sel)].forEach(n=>{const b=n.getBoundingClientRect().bottom-rr.top;if(b>20)brk.push(b)});
+return{w,h:h+2,brk}}finally{f.remove()}}
 /* পুরোনো html2canvas শুধু ব্যাকআপ; color-mix()/color() রঙ সাধারণ rgb-তে বদলে নেয় */
 const _CF=/color\(\s*srgb\s+([\d.eE+-]+%?)\s+([\d.eE+-]+%?)\s+([\d.eE+-]+%?)(?:\s*\/\s*([\d.eE+-]+%?))?\s*\)/g;
 const _cv=v=>/%$/.test(v)?parseFloat(v)/100:parseFloat(v)||0,_cx=v=>Math.round(Math.max(0,Math.min(1,_cv(v)))*255);
@@ -2232,7 +2273,7 @@ try{let w0=Math.max(el.clientWidth,320),wide=0;const all=[...el.querySelectorAll
 const land=o.land!=null?!!o.land:wide>760,est=el.scrollHeight+220;const PP=PSZ(land),MM=Math.round(PP.W*.04);let sc=(PP.W-2*MM)/w0;sc=Math.max(.5,Math.min(sc,3,Math.sqrt(24e6/(w0*est)),30000/est));
 const brk=[],I=S.info||{},addr=((I.addr||'')+(I.ph?' · মোবাইল: '+I.ph:'')).replace(/\s+/g,' ').trim();
 const tx=[...el.querySelectorAll('select')].map(x=>{const t=x.options[x.selectedIndex];return t?t.text:''}),iv=[...el.querySelectorAll('input,textarea')].map(x=>({t:x.type,v:x.value,c:x.checked}));
-const cv=await h2c(el,{vars:{'--bg':'#fff','--c':'#fff','--t':'#1f2937','--m':'#6b7280','--b':'#e5e7eb','--r':'#e11d48','--g':'#15803d'},scale:sc,backgroundColor:'#fff',width:w0,windowWidth:Math.max(w0,innerWidth),logging:false,onclone:(doc,root)=>{
+const cv=await h2c(el,{probe:1,brkSel:'tr,.row,.st,h4,.card,table,p,.xc,.qrc',vars:{'--bg':'#fff','--c':'#fff','--t':'#1f2937','--m':'#6b7280','--b':'#e5e7eb','--r':'#e11d48','--g':'#15803d'},scale:sc,backgroundColor:'#fff',width:w0,windowWidth:Math.max(w0,innerWidth),logging:false,onclone:(doc,root)=>{
 root.querySelectorAll('select').forEach((x,i)=>{const b=doc.createElement('b');b.textContent=tx[i]||'';x.replaceWith(b)});
 root.querySelectorAll('input,textarea').forEach((x,i)=>{const q=iv[i]||{},b=doc.createElement('span');b.textContent=(q.t=='checkbox'||q.t=='radio')?(q.c?'☑':'☐'):(q.t=='file'||q.t=='hidden'?'':q.v||'');x.replaceWith(b)});
 root.querySelectorAll('.np,summary,details:not([open]),button:not(.fc),.xt,.cc,.bar,.bkb,#pdfbar,.tb,[data-nopdf]').forEach(n=>n.remove());
@@ -2240,10 +2281,10 @@ const vw=doc.defaultView;[root,...root.querySelectorAll('*')].forEach(n=>{const 
 root.style.cssText+=';position:static;inset:auto;height:auto;max-height:none;overflow:visible;margin:0;max-width:none;width:'+w0+'px;background:#fff;padding:'+(root.classList.contains('md')?'12px':'0');
 if(o.hdr!==false){const h=doc.createElement('div');h.style.cssText='text-align:center;border-bottom:3px solid #0f9488;padding:6px 0 10px;margin:0 0 12px;color:#111827';h.innerHTML=(I.logo?'<img src="'+I.logo+'" style="height:64px;width:auto;vertical-align:middle;margin-right:10px">':'')+'<b style="font-size:26px;color:#0b6f66">'+esc(S.inst||'')+'</b>'+(addr?'<div style="font-size:13px;color:#4b5563">'+esc(addr)+'</div>':'')+'<div style="font-size:19px;font-weight:700;margin-top:6px">'+esc(o.title||'রিপোর্ট')+'</div><div style="font-size:12px;color:#6b7280">তৈরির তারিখ: '+dt(today())+'</div>';root.insertBefore(h,root.firstChild)}
 const rr=root.getBoundingClientRect();[...root.children,...root.querySelectorAll('tr,.row,.st,h4,.card,table,p,.xc,.qrc')].forEach(n=>{const b=n.getBoundingClientRect().bottom-rr.top;if(b>20)brk.push(b)})}});
-const P=PSZ(land),M=MM,cw=P.W-2*M,f=cw/cv.width,ph=(P.H-2*M-68)/f,bk=[...new Set(brk.map(b=>Math.round(b*sc)))].sort((a,b)=>a-b),sl=[];let y=0;
+const P=PSZ(land),M=MM,cw=P.W-2*M,f=cw/cv.width,ph=(P.H-2*M-68)/f,bk=[...new Set(((cv.__pb&&cv.__pb.brk&&cv.__pb.brk.length)?cv.__pb.brk:brk).map(b=>Math.round(b*((cv.__pb&&cv.__pb.brk&&cv.__pb.brk.length)?cv.__k:sc))))].sort((a,b)=>a-b),sl=[];let y=0;
 while(y<cv.height-3){let e=Math.min(cv.height,y+ph);if(e<cv.height){let c=0;for(const b of bk)if(b>y+ph*.5&&b<=e)c=b;if(c)e=c}if(e<=y+10)e=Math.min(cv.height,y+ph);sl.push([y,e]);y=e}
 const J=[];for(let i=0;i<sl.length;i++){const pc=document.createElement('canvas');pc.width=P.W;pc.height=P.H;const x=pc.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,P.W,P.H);const[a,b]=sl[i];x.drawImage(cv,0,a,cv.width,b-a,M,M,cw,(b-a)*f);x.fillStyle='#6b7280';x.font="44px 'SolaimanLipi','Noto Sans Bengali',sans-serif";x.textAlign='center';x.fillText((S.inst||'')+' · পৃষ্ঠা '+bd(i+1)+' / '+bd(sl.length),P.W/2,P.H-M/2+16);J.push({w:P.W,h:P.H,d:await jpgB(pc),pw:P.pw,ph:P.ph})}
-await repSave(o.fn||pdfFn(o.title),mkPdf(J));toast('PDF ডাউনলোড হয়েছে')}
+await repSave(o.fn||pdfFn(o.title),mkPdf(J));toast('PDF তৈরি হয়েছে')}
 catch(x){toast('PDF তৈরি হয়নি: '+((x&&x.message)||x))}finally{document.body.classList.remove('xcap')}}
 const PSZ=l=>l?{W:3508,H:2480,pw:841.89,ph:595.28}:{W:2480,H:3508,pw:595.28,ph:841.89};
 /* নির্দিষ্ট মাপের পাতা (প্রবেশপত্র, রেজাল্ট কার্ড, রুটিন…): একটি এলিমেন্ট = একটি A4 পাতা */
@@ -2251,7 +2292,7 @@ async function pdfPages(q,fn,land){ltHide();try{return await pdfPages0(q,fn,land
 async function pdfPages0(q,fn,land){const els=[...document.querySelectorAll(q)];if(!els.length)return toast('PDF করার মতো কিছু নেই');try{await pdfLib()}catch(e){return pdfNet()}
 toast('PDF তৈরি হচ্ছে…');document.body.classList.add('xcap');
 try{const P=PSZ(land),J=[];for(const el of els){const c=await h2c(el,{scale:3,backgroundColor:'#fff'}),pc=document.createElement('canvas');pc.width=P.W;pc.height=P.H;const x=pc.getContext('2d');x.fillStyle='#fff';x.fillRect(0,0,P.W,P.H);const k=Math.min(P.W/c.width,P.H/c.height),w=c.width*k,h=c.height*k;x.drawImage(c,(P.W-w)/2,(P.H-h)/2,w,h);J.push({w:P.W,h:P.H,d:await jpgB(pc),pw:P.pw,ph:P.ph})}
-await repSave(fn,mkPdf(J));toast('PDF ডাউনলোড হয়েছে')}catch(x){toast('PDF তৈরি হয়নি: '+((x&&x.message)||x))}finally{document.body.classList.remove('xcap')}}
+await repSave(fn,mkPdf(J));toast('PDF তৈরি হয়েছে')}catch(x){toast('PDF তৈরি হয়নি: '+((x&&x.message)||x))}finally{document.body.classList.remove('xcap')}}
 function pdfModal(b){const m=b.closest('.md');if(!m)return;const t=((m.querySelector('.tb b')||{}).textContent||'রিপোর্ট').trim();pdfFlow(m,{title:t,hdr:!(S.inst&&m.textContent.includes(S.inst))})}
 function pdfPage(){const m=$('#main');if(!m)return;let el=m,land,t=(NAV.find(n=>n[0]==page)||[])[1]||'রিপোর্ট';const g=$('#main .fgw');if(page=='fees'&&g){el=g.closest('.card')||m;land=true;t='ফি ও বেতন রিপোর্ট'}pdfFlow(el,{title:t,land})}
 const PDFNO=['sa','setup','users','dash','inst'];
@@ -2260,7 +2301,17 @@ function pdfBar(){const d=$('#pdfbar');if(d)d.remove()}
 async function exPrint(o){const pv=$('#xprev'),hid=pv&&getComputedStyle(pv).display=='none';if(hid){pv.style.display='';try{fitX()}catch(e){}}const k=$('#xa .xap')?['#xa .xap','admit-card']:$('#xa .xc')?['#xa .xc','result-card']:['#xa .xpg','combined-result'];try{await pdfPages(k[0],k[1]+'-'+today()+'.pdf',o=='l')}finally{if(hid)pv.style.display='none'}}
 function erPrint(){return pdfPages('#erp','exam-routine-'+today()+'.pdf',false)}
 function atPrint(sel,o){const a=$(sel);if(a)return pdfFlow(a,{land:o=='l',title:sel=='#atex'?'মাসিক হাজিরা রিপোর্ট':'QR কার্ড',hdr:sel!='#atex'})}
-async function repSave(fn,blob){try{if(IA){const d=await claude.use('downloads');if(d){await d.save({filename:fn,data:blob});return}}}catch(e){if(e&&e.code=='declined')return}const a=document.createElement('a');a.href=URL.createObjectURL(blob);a.download=fn;document.body.append(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(a.href),5000)}
+/* ===== ফাইল সেভ (PDF/ছবি): ফোনে সত্যিই নামে কিনা নিশ্চিত করতে ডাউনলোড · শেয়ার · খুলুন — তিন পথ ===== */
+let _dl=null;
+function dlClose(){const o=document.getElementById('dlsheet');if(o)o.remove();if(_dl){const u=_dl.url;_dl=null;setTimeout(()=>URL.revokeObjectURL(u),180000)}}
+function dlSave(){if(!_dl)return;const a=document.createElement('a');a.href=_dl.url;a.download=_dl.fn;a.rel='noopener';a.style.display='none';document.body.append(a);a.click();a.remove();toast('ডাউনলোড শুরু হয়েছে — ফাইল না পেলে "শেয়ার / ফাইলে সংরক্ষণ" বা "খুলুন" চাপুন')}
+async function dlShare(){if(!_dl||!_dl.file)return;try{await navigator.share({files:[_dl.file],title:_dl.fn})}catch(e){if(e&&e.name!='AbortError')toast('শেয়ার করা যায়নি — "খুলুন" চেপে দেখুন',1)}}
+function dlOpen(){if(!_dl)return;const w=window.open(_dl.url,'_blank');if(!w)location.href=_dl.url}
+async function repSave(fn,blob){try{if(IA){const d=await claude.use('downloads');if(d){await d.save({filename:fn,data:blob});return}}}catch(e){if(e&&e.code=='declined')return}
+dlClose();const url=URL.createObjectURL(blob);let file=null;try{file=new File([blob],fn,{type:blob.type||'application/pdf'})}catch(e){}
+_dl={fn,url,file};const canSh=!!(file&&navigator.share&&navigator.canShare&&navigator.canShare({files:[file]})),img=/^image\//.test(blob.type),mob=/Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent);
+const o=document.createElement('div');o.id='dlsheet';o.innerHTML=`<div class="dlb"><b>${img?'🖼 ছবি':'📄 PDF'} তৈরি হয়েছে</b><small>${esc(fn)}</small><button class="btn" onclick="dlSave()">⬇ ডাউনলোড করুন</button>${canSh?'<button class="btn o" onclick="dlShare()">📤 শেয়ার / ফাইলে সংরক্ষণ</button>':''}<button class="btn o" onclick="dlOpen()">👁 খুলুন / দেখুন</button><button class="btn s o" onclick="dlClose()">✕ বন্ধ</button><small class="dlh">ডাউনলোড না হলে "খুলুন" চেপে ব্রাউজারের মেনু থেকে সেভ করুন, অথবা শেয়ার করে Files/Drive-এ রাখুন।</small></div>`;
+document.body.append(o);if(!mob)dlSave()}
 async function repPdf(kind){try{
 let per,ttl,fn,st='';
 if(kind=='m'){if(!/^\d{4}-\d{2}$/.test(rpM))return toast('মাস বেছে নিন');st=rpM;per=t=>t.date.startsWith(rpM);ttl='মাসিক আয়-ব্যয় রিপোর্ট — '+mn(rpM);fn='income-expense-'+rpM}
@@ -2298,7 +2349,7 @@ if(kind=='m'){h2('বিস্তারিত লেনদেন');tbl(['তা�
 need(150);y+=70;cx.fillStyle='#6b7280';cx.fillRect(M+20,y,300,2);cx.fillRect(W-M-320,y,300,2);T('হিসাবরক্ষক',M+170,y+30,24,{a:'center',c:'#374151'});T('মুহতামিম / প্রধান শিক্ষক',W-M-170,y+30,24,{a:'center',c:'#374151'});
 pages.forEach((c,i)=>{const x=c.getContext('2d');x.textBaseline='middle';x.fillStyle='#d1d5db';x.fillRect(M,H-M,W-2*M,2);x.font=font(20);x.fillStyle='#6b7280';x.textAlign='left';x.fillText('প্রস্তুতের তারিখ: '+dt(today()),M,H-M+26);x.textAlign='right';x.fillText('পৃষ্ঠা '+bd(i+1)+' / '+bd(pages.length),W-M,H-M+26)});
 const J=pages.map(c=>{const b=atob(c.toDataURL('image/jpeg',.85).split(',')[1]),u=new Uint8Array(b.length);for(let i=0;i<b.length;i++)u[i]=b.charCodeAt(i);return{d:u,w:c.width,h:c.height}});
-await repSave(fn+'.pdf',mkPdf(J));toast('PDF ডাউনলোড হচ্ছে')}catch(e){console.error(e);toast('PDF তৈরি করা যায়নি')}}
+await repSave(fn+'.pdf',mkPdf(J));toast('PDF তৈরি হয়েছে')}catch(e){console.error(e);toast('PDF তৈরি করা যায়নি')}}
 
 /* ===== হাজিরা ব্যবস্থাপনা (ডিজিটাল হাজিরা) ===== */
 let atD=today(),atG='t',atM=today().slice(0,7),atRP='m',atWS='',atMd='auto',atLast={k:'',t:0},atStream=null,atRaf=0,atC='',atSid='',atAT='abs',atMsg='',atLog=[];
@@ -2410,6 +2461,50 @@ function erCol(){const r=erW();if(!r)return;r.cols.push('নতুন');r.rows.f
 function erRow(){const r=erW();if(!r)return;r.rows.push({d:'',w:'',c:r.cols.map(()=>'')});save();erEdR()}
 function erDC(i){const r=erW();if(!r)return;r.cols.splice(i,1);r.rows.forEach(w=>w.c.splice(i,1));save();erEdR()}
 function erDR(j){const r=erW();if(!r)return;r.rows.splice(j,1);save();erEdR()}
+
+/* ===== সকল শ্রেণির প্রতিদিনের ক্লাস রুটিন (সারণি) ===== */
+const crT=[['৮.৩০','৯.১৫'],['৯.১৬','১০.০০'],['১০.০১','১০.৩০'],['১০.৩১','১১.১০'],['১১.১১','১১.৫০'],['১১.৫১','১২.৩০'],['১২.৩১','২.১০'],['২.১১','২.৫০'],['২.৫১','৩.৩০'],['৩.৩১','৪.১০']];
+const crDef=()=>({title:'সকল শ্রেণির প্রতিদিনের ক্লাস রুটিন',p:crT.map(x=>({a:x[0],b:x[1]})),rows:CL().slice(0,14).map(c=>({n:c,c:crT.map(()=>'')}))});
+const crR=()=>S.crt||(S.crt=crDef());
+const crTm=p=>{const a=bd(String(p.a||'').trim()),b=bd(String(p.b||'').trim());return a&&b?`<span>${esc(a)}-</span><span>${esc(b)}</span>`:`<span>${esc(a||b)}</span>`};
+const crPaper=()=>{const r=S.crt;if(!r)return '<p class="em">এখনো রুটিন তৈরি হয়নি</p>';return `<div class="crp" id="crp"><h2>${esc(r.title)}</h2><table><colgroup><col style="width:22mm">${r.p.map(()=>'<col>').join('')}</colgroup><tr><th>শ্রেণি</th>${r.p.map(p=>`<th class="tm">${crTm(p)}</th>`).join('')}</tr>${r.rows.map(w=>`<tr><td class="cn">${esc(w.n)}</td>${r.p.map((p,i)=>`<td>${esc((w.c||[])[i]??'')}</td>`).join('')}</tr>`).join('')}</table></div>`};
+const crEd=()=>{const r=crR(),x='style="color:var(--r);cursor:pointer;text-decoration:none"';return `<div class="erSc"><table class="edt"><tr><th>শ্রেণি</th>${r.p.map((p,i)=>`<th><input data-pa="${i}" value="${esc(p.a)}" placeholder="শুরু সময়" oninput="crIn(this)"><input data-pb="${i}" value="${esc(p.b)}" placeholder="শেষ সময়" oninput="crIn(this)"><a onclick="crDC(${i})" ${x}>✕</a></th>`).join('')}<th></th></tr>${r.rows.map((w,j)=>`<tr><td><input data-rn="${j}" value="${esc(w.n)}" oninput="crIn(this)" style="font-weight:700"></td>${r.p.map((p,i)=>`<td><input data-rx="${j}_${i}" value="${esc((w.c||[])[i]??'')}" oninput="crIn(this)" onkeydown="crKey(event,this)"></td>`).join('')}<td><a onclick="crDR(${j})" ${x}>✕</a></td></tr>`).join('')}</table></div>`};
+function crPage(){const w=canW('routine');setTimeout(crFit,0);if(!w)return `<div id="crpv">${crPaper()}</div>`;const r=crR();
+return `<div class="card"><b>🗓 সকল শ্রেণির প্রতিদিনের ক্লাস রুটিন</b><small style="color:var(--m)">প্রতিটি ঘণ্টার (পিরিয়ডের) মাথায় দুটি ঘর: উপরে শুরুর সময়, নিচে শেষের সময়। নিচের ঘরগুলোতে বিষয় লিখুন।</small><div class="f2" style="margin-top:10px"><button class="btn" onclick="crCol()">+ ঘণ্টা (সময়ের ঘর)</button><button class="btn" onclick="crRow()">+ শ্রেণি</button></div><div id="cred" style="margin-top:10px">${crEd()}</div></div><div class="card"><b>🧾 শিরোনাম</b><label>শিরোনাম<input value="${esc(r.title)}" oninput="crF('title',this.value)"></label><div class="f2" style="margin-top:10px"><button class="btn" onclick="crPrint()">⬇ PDF ডাউনলোড</button><button class="btn o" onclick="exImg('#crp','class-routine')">🖼 হাই-রেজুলেশন ছবি সেভ</button></div></div><div id="crpv">${crPaper()}</div>`}
+function crFit(){const v=$('#crpv'),e=$('#crp');if(!e||!v)return;e.style.setProperty('--k',Math.min(1,(v.clientWidth-4)/1123))}
+function crPv(){const v=$('#crpv');if(v){v.innerHTML=crPaper();crFit()}}
+function crEdR(){const d=$('#cred');if(d)d.innerHTML=crEd();crPv()}
+function crW(){if(!canW('routine')){toast('এই ভূমিকায় পরিবর্তনের অনুমতি নেই');return null}return crR()}
+function crF(k,v){const r=crW();if(!r)return;r[k]=v;save();crPv()}
+function crIn(e){const r=crW();if(!r)return;const d=e.dataset;if(d.pa!==undefined)r.p[d.pa].a=e.value;else if(d.pb!==undefined)r.p[d.pb].b=e.value;else if(d.rn!==undefined)r.rows[d.rn].n=e.value;else{const[j,i]=d.rx.split('_');(r.rows[j].c=r.rows[j].c||[])[i]=e.value}save();crPv()}
+function crKey(ev,e){if(ev.key!='Enter')return;ev.preventDefault();const[j,i]=e.dataset.rx.split('_'),n=document.querySelector(`#cred [data-rx="${+j+1}_${i}"]`);if(n){n.focus();n.select()}}
+function crCol(){const r=crW();if(!r)return;r.p.push({a:'',b:''});r.rows.forEach(w=>(w.c=w.c||[]).push(''));save();crEdR()}
+function crRow(){const r=crW();if(!r)return;r.rows.push({n:'',c:r.p.map(()=>'')});save();crEdR()}
+function crDC(i){const r=crW();if(!r)return;if(r.p.length<2)return toast('অন্তত একটি ঘণ্টা থাকতে হবে');r.p.splice(i,1);r.rows.forEach(w=>(w.c||[]).splice(i,1));save();crEdR()}
+function crDR(j){const r=crW();if(!r)return;r.rows.splice(j,1);save();crEdR()}
+function crPrint(){return pdfPages('#crp','class-routine-'+today()+'.pdf',true)}
+
+/* ===== খাতভিত্তিক আয়-ব্যয় ও শ্রেণিভিত্তিক আয়ের বিস্তারিত PDF ===== */
+function repHtml(h,title){const d=document.createElement('div');d.style.cssText='position:absolute;left:-12000px;top:0;width:900px;background:#fff;padding:14px;color:#1f2937';d.innerHTML=h;document.body.appendChild(d);return Promise.resolve(pdfFlow(d,{title,land:false})).finally(()=>d.remove())}
+const _rth='style="border:1px solid #9ca3af;padding:5px 7px;background:#e5e7eb;font-size:13px;text-align:center"',_rtd=a=>`style="border:1px solid #9ca3af;padding:5px 7px;font-size:13px;text-align:${a||'left'}"`,_rtb='style="border-collapse:collapse;width:100%;margin:6px 0 14px"';
+const _rdesc=t=>(t.cat||'')+(t.who?' · '+t.who:'')+(t.exName?' · '+t.exName:'')+(t.month?' · '+mn(t.month):'');
+function repCatPdf(){const pm=(typeof mon!='undefined'&&mon)?mon:'',ok=t=>!pm||String(t.date).startsWith(pm),lab=pm?mn(pm):'সব সময়';
+const sec=(ty,ttl,col)=>{const L=S.tx.filter(t=>t.type==ty&&ok(t)),g={};L.forEach(t=>{(g[t.cat||'অন্যান্য']=g[t.cat||'অন্যান্য']||[]).push(t)});const ks=Object.keys(g).sort((a,b)=>sum(g[b])-sum(g[a]));
+if(!L.length)return `<h3 style="margin:14px 0 4px;color:${col}">${ttl}</h3><p style="color:#6b7280">এই সময়ে কোনো তথ্য নেই</p>`;
+let h=`<h3 style="margin:14px 0 4px;color:${col}">${ttl} — মোট ${tk(sum(L))}</h3><table ${_rtb}><tr><th ${_rth}>খাত</th><th ${_rth}>সংখ্যা</th><th ${_rth}>মোট</th></tr>${ks.map(k=>`<tr><td ${_rtd()}>${esc(k)}</td><td ${_rtd('center')}>${bn(g[k].length)}</td><td ${_rtd('right')}>${tk(sum(g[k]))}</td></tr>`).join('')}<tr><td ${_rtd()}><b>সর্বমোট</b></td><td ${_rtd('center')}><b>${bn(L.length)}</b></td><td ${_rtd('right')}><b>${tk(sum(L))}</b></td></tr></table>`;
+ks.forEach(k=>{const a=g[k].sort((x,y)=>(x.date+String(x.no)).localeCompare(y.date+String(y.no)));h+=`<div style="margin-top:8px"><b>${esc(k)} — ${tk(sum(a))}</b><table ${_rtb}><tr><th ${_rth}>তারিখ</th><th ${_rth}>নং</th><th ${_rth}>বিবরণ</th><th ${_rth}>টাকা</th></tr>${a.map(t=>`<tr><td ${_rtd()}>${dt(t.date)}</td><td ${_rtd('center')}>${(ty=='in'?'র-':'ভা-')+esc(t.no)}</td><td ${_rtd()}>${esc(_rdesc(t))}</td><td ${_rtd('right')}>${tk(t.amt)}</td></tr>`).join('')}</table></div>`});return h};
+const I=sum(S.tx.filter(t=>t.type=='in'&&ok(t))),O=sum(S.tx.filter(t=>t.type=='out'&&ok(t)));
+if(!S.tx.some(ok))return toast('এই সময়ে কোনো আয়-ব্যয়ের তথ্য নেই');
+return repHtml(`<b style="font-size:16px">খাতভিত্তিক আয়-ব্যয়ের বিস্তারিত — ${esc(lab)}</b><div style="margin:6px 0">আয়: <b>${tk(I)}</b> · ব্যয়: <b>${tk(O)}</b> · নিট স্থিতি: <b>${tk(I-O)}</b></div>${sec('in','খাতভিত্তিক আয়','#15803d')}${sec('out','খাতভিত্তিক ব্যয়','#b91c1c')}`,'খাতভিত্তিক আয়-ব্যয় রিপোর্ট — '+lab)}
+function repClsPdf(){const pm=(typeof mon!='undefined'&&mon)?mon:'',lab=pm?mn(pm):'সব সময়',L=S.tx.filter(t=>t.type=='in'&&(!pm||String(t.date).startsWith(pm)));
+if(!L.length)return toast('এই সময়ে কোনো আয়ের তথ্য নেই');const sm=Object.fromEntries(S.students.map(x=>[x.id,x])),g={};
+L.forEach(t=>{const st=t.sid&&sm[t.sid],c=st?st.cls:(t.cls||'শ্রেণিহীন / অন্যান্য আয়');(g[c]=g[c]||[]).push(t)});
+const order=[...stCls(),'শ্রেণিহীন / অন্যান্য আয়'],ks=Object.keys(g).sort((a,b)=>(order.indexOf(a)<0?99:order.indexOf(a))-(order.indexOf(b)<0?99:order.indexOf(b)));
+let h=`<b style="font-size:16px">শ্রেণিভিত্তিক আয়ের তথ্য — ${esc(lab)}</b><div style="margin:6px 0">মোট আয়: <b>${tk(sum(L))}</b></div><table ${_rtb}><tr><th ${_rth}>শ্রেণি</th><th ${_rth}>লেনদেন</th><th ${_rth}>মোট আয়</th></tr>${ks.map(k=>`<tr><td ${_rtd()}>${esc(k)}</td><td ${_rtd('center')}>${bn(g[k].length)}</td><td ${_rtd('right')}>${tk(sum(g[k]))}</td></tr>`).join('')}<tr><td ${_rtd()}><b>সর্বমোট</b></td><td ${_rtd('center')}><b>${bn(L.length)}</b></td><td ${_rtd('right')}><b>${tk(sum(L))}</b></td></tr></table>`;
+ks.forEach(k=>{const a=g[k],cat={};a.forEach(t=>{cat[t.cat||'অন্যান্য']=(cat[t.cat||'অন্যান্য']||0)+(+t.amt||0)});
+const stu={};a.forEach(t=>{const st=t.sid&&sm[t.sid];if(st){(stu[st.id]=stu[st.id]||{s:st,v:0}).v+=+t.amt||0}});const sl=Object.values(stu).sort((x,y)=>byRoll(x.s,y.s));
+h+=`<div style="margin-top:12px"><b style="font-size:15px">${esc(k)} — ${tk(sum(a))}</b><table ${_rtb}><tr><th ${_rth}>খাত</th><th ${_rth}>টাকা</th></tr>${Object.entries(cat).map(([c,v])=>`<tr><td ${_rtd()}>${esc(c)}</td><td ${_rtd('right')}>${tk(v)}</td></tr>`).join('')}</table>${sl.length?`<table ${_rtb}><tr><th ${_rth}>রোল</th><th ${_rth}>শিক্ষার্থী</th><th ${_rth}>জমা</th></tr>${sl.map(x=>`<tr><td ${_rtd('center')}>${esc(x.s.roll||'')}</td><td ${_rtd()}>${esc(x.s.name)}</td><td ${_rtd('right')}>${tk(x.v)}</td></tr>`).join('')}</table>`:''}</div>`});
+return repHtml(h,'শ্রেণিভিত্তিক আয়ের রিপোর্ট — '+lab)}
 /* ===== সুপার এডমিন প্যানেল ও মাদরাসা একাউন্ট ===== */
 const regSave=()=>{try{localStorage.setItem('madrasa-reg2',JSON.stringify(REG))}catch(e){toast('জায়গা শেষ')}};
 const tRead=id=>{try{return JSON.parse(localStorage.getItem(tKey(id))||'null')}catch(e){return null}};
